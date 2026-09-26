@@ -32,7 +32,14 @@ export default function EvidencePanel({ node }) {
         {report.status !== 'ok' && (
           <p className="text-sm text-muted italic">A non-"ok" status means no usable report was retrieved — it does not mean the URL is safe.</p>
         )}
-        {report.last_analysis_date && <p className="text-xs text-muted mt-3">Last analyzed: {report.last_analysis_date}</p>}
+        {report.last_analysis_date != null && (
+          <p className="text-xs text-muted mt-3">
+            Last analyzed: {new Date(report.last_analysis_date * 1000).toLocaleString(undefined, {
+              year: 'numeric', month: 'short', day: 'numeric',
+              hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+            })}
+          </p>
+        )}
       </div>
     );
   }

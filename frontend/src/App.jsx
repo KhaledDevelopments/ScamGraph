@@ -14,14 +14,19 @@ function App() {
   const [error, setError] = useState(null);
 
   const handleAnalyze = async (content) => {
-    if (!content.trim()) return;
+    if (loading || !content.trim()) return;
     setLoading(true);
     setError(null);
     setSelectedNode(null);
     try {
       const res = await axios.post(`${API_BASE_URL}/analyze`, { content });
+      if (!res.data?.assessment) {
+        setError('The backend returned an outdated response. Restart the backend and try again.');
+        setResult(null);
+        return;
+      }
       setResult(res.data);
-    } catch (err) {
+    } catch {
       setError('Could not reach the analysis server. Is the backend running?');
       setResult(null);
     } finally {
