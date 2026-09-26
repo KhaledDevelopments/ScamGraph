@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.apps.outputs.backend }}
+      frontend: ${{ steps.apps.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Detect application manifests
+        id: apps
+        shell: bash
+        run: |
+          if [[ -f backend/requirements.txt || -f backend/pyproject.toml ]]; then
+            echo 'backend=true' >> "$GITHUB_OUTPUT"
+          elif git ls-files backend | grep -Eq '\.py$'; then
+            echo '::error::Backend Python code needs backend/requirements.txt or backend/pyproject.toml.'
+            exit 1
+          else
+            echo 'backend=false' >> "$GITHUB_OUTPUT"
+            echo 'Backend checks skipped: no Python application manifest yet.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -f frontend/package.json ]]; then
+            echo 'frontend=true' >> "$GITHUB_OUTPUT"
+          elif git ls-files frontend | grep -Eq '\.(js|jsx|ts|tsx)$'; then
+            echo '::error::Frontend code needs frontend/package.json.'
+            exit 1
+          else
+            echo 'frontend=false' >> "$GITHUB_OUTPUT"
+            echo 'Frontend checks skipped: no React application manifest yet.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  backend:
+    name: FastAPI checks
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements*.txt
+            backend/pyproject.toml
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          if [[ -f requirements.txt ]]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install -e .
+          fi
+          python -m pip install ruff pytest
+          if [[ -f requirements-dev.txt ]]; then
+            python -m pip install -r requirements-dev.txt
+          fi
+      - name: Lint
+        run: python -m ruff check .
+      - name: Check formatting
+        run: python -m ruff format --check .
+      - name: Test
+        run: python -m pytest
+
+  frontend:
+    name: React / Vite checks
+    needs: detect
+    if: needs.detect.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test without watch mode
+        run: npm run test:ci
+      - name: Production build
+        run: npm run build
+      - name: Save production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ github.sha }}
+          path: frontend/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  ci:
+    name: CI result
+    if: always()
+    needs: [detect, backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify all expected checks passed
+        env:
+          DETECT_RESULT: ${{ needs.detect.result }}
+          BACKEND_ENABLED: ${{ needs.detect.outputs.backend }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_ENABLED: ${{ needs.detect.outputs.frontend }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+        shell: bash
+        run: |
+          [[ "$DETECT_RESULT" == success ]] || exit 1
+          if [[ "$BACKEND_ENABLED" == true ]]; then
+            [[ "$BACKEND_RESULT" == success ]] || exit 1
+          fi
+          if [[ "$FRONTEND_ENABLED" == true ]]; then
+            [[ "$FRONTEND_RESULT" == success ]] || exit 1
+          fi
+          echo "Backend: $BACKEND_RESULT; frontend: $FRONTEND_RESULT" >> "$GITHUB_STEP_SUMMARY"
