@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from services import virustotal
+from providers import virustotal
 
 URL = "https://example.test/login?a=1&b=2"
 STATS = {"malicious": 2, "suspicious": 1, "harmless": 60, "undetected": 10}
