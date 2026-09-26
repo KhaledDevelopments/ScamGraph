@@ -16,6 +16,7 @@ def test_analyze_receives_content_without_changing_it():
         "message": "Content received",
         "content": content,
         "indicators": {"emails": [], "urls": [], "domains": []},
+        "threat_intelligence": {"virustotal": []},
     }
 
 
