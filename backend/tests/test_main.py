@@ -12,7 +12,25 @@ def test_analyze_receives_content_without_changing_it():
     response = client.post("/analyze", json={"content": content})
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Content received", "content": content}
+    assert response.json() == {
+        "message": "Content received",
+        "content": content,
+        "indicators": {"emails": [], "urls": [], "domains": []},
+    }
+
+
+def test_analyze_returns_extracted_indicators():
+    content = "Contact support@example.com or visit https://example.com/login."
+
+    response = client.post("/analyze", json={"content": content})
+
+    assert response.status_code == 200
+    assert response.json()["content"] == content
+    assert response.json()["indicators"] == {
+        "emails": ["support@example.com"],
+        "urls": ["https://example.com/login"],
+        "domains": ["example.com"],
+    }
 
 
 @pytest.mark.parametrize(
