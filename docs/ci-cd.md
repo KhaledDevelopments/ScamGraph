@@ -4,10 +4,11 @@ GitHub Actions runs `.github/workflows/ci.yml` on pull requests, pushes to
 `main`, and manual runs from the Actions tab. Python and React checks run
 in parallel. Older runs for the same branch are cancelled.
 
-The repository currently contains empty app folders. Until each app has a
-dependency manifest, its checks are **skipped**, with a note in the run summary.
-A green run at this stage does not mean an application was tested. Adding Python
-or JavaScript/TypeScript source without its manifest fails the detection job.
+The backend now has a dependency manifest and input endpoint tests, so its
+checks run in CI. The frontend is still empty and its checks are **skipped**,
+with a note in the run summary, until it has a dependency manifest. A skipped
+job does not mean an application was tested. Adding Python or
+JavaScript/TypeScript source without its manifest fails the detection job.
 
 ## Proposal alignment
 
@@ -16,10 +17,10 @@ specifies FastAPI, React + Vite, Tailwind CSS, React Flow, and SQLite initially
 (page 6). The main API is `POST /analyze`, accepting a JSON `content` field
 (page 8). VirusTotal is the first integration, followed by PhishTank and URLhaus.
 
-This setup supplies development automation for that stack. It does not implement
-the application; Phase 0 of the proposal calls for environment preparation before
-the hackathon, subject to the competition's rules. Python 3.12 and Node.js 24
-are CI defaults chosen here, not versions required by the proposal.
+This setup supplies development automation for that stack. The backend currently
+receives and validates content; scam analysis is still to be implemented.
+Python 3.12 and Node.js 24 are CI defaults chosen here, not versions required
+by the proposal.
 
 ## FastAPI backend contract
 
@@ -51,13 +52,14 @@ are CI defaults chosen here, not versions required by the proposal.
 
 ## Tests to add with the application
 
-These are planned tests, not tests already implemented by this workflow:
+The backend already tests input acceptance, validation errors, and local frontend
+CORS behavior. The following tests are planned as the application grows:
 
 - **Extraction and scoring:** exercise URL/domain/email extraction, heuristic
   evidence, and the agreed score calculation. Check that an unknown URL is not
   automatically classified as safe (proposal pages 4 and 9-10).
-- **API contract:** test `POST /analyze` with valid, empty, and malformed input;
-  verify the agreed response schema and evidence consumed by the graph.
+- **API contract:** extend the input endpoint tests to verify the agreed analysis
+  response schema and evidence consumed by the graph.
 - **Provider failures:** mock VirusTotal, PhishTank, and URLhaus responses,
   including timeouts, rate limits, and unavailable services. Assert that analysis
   continues using available evidence (page 12). PR checks should not depend on
