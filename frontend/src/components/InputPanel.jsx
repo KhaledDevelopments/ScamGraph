@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function InputPanel({ onAnalyze }) {
+export default function InputPanel({ onAnalyze, loading }) {
   const [text, setText] = useState('');
 
   return (
@@ -15,9 +15,9 @@ export default function InputPanel({ onAnalyze }) {
         <button
           className="bg-accent hover:bg-sky-400 text-base font-medium px-6 py-2.5 rounded-lg transition-colors disabled:opacity-40"
           onClick={() => onAnalyze(text)}
-          disabled={!text.trim()}
+          disabled={!text.trim() || loading}
         >
-          Analyze
+          {loading ? 'Analyzing...' : 'Analyze'}
         </button>
       </div>
     </div>

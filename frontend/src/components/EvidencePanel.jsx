@@ -1,50 +1,41 @@
-const evidenceData = {
-  domain: {
-    title: 'unb-secure-login.xyz',
-    source: 'VirusTotal',
-    findings: [
-      'Domain differs from UNB\'s official domain (unb.ca)',
-      'Registered 4 days ago',
-      'Flagged by 12 of 90 security vendors',
-    ],
-    contribution: 45,
-  },
-  vt: {
-    title: 'VirusTotal Detection',
-    source: 'VirusTotal API',
-    findings: [
-      'Listed in active phishing campaign database',
-      'Associated with known credential-harvesting infrastructure',
-    ],
-    contribution: 30,
-  },
-};
-
 export default function EvidencePanel({ node }) {
-  const evidence = evidenceData[node.id];
+  const { type, label, report, isAssessed } = node.data;
 
-  if (!evidence) {
+  if (type === 'message') {
+    return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">Original submitted content — indicators extracted from it are shown as connected nodes.</p></div>;
+  }
+
+  if (type === 'url') {
     return (
       <div className="border border-border rounded-xl bg-surface p-6">
-        <p className="text-muted">No additional evidence for this node yet.</p>
+        <p className="font-mono text-sm break-all mb-2">{label}</p>
+        {isAssessed
+          ? <p className="text-sm text-accent">This is the URL that was checked against threat intelligence.</p>
+          : <p className="text-sm text-muted">Skipped — only the first extracted URL is assessed in this version.</p>}
       </div>
     );
   }
 
-  return (
-    <div className="border border-border rounded-xl bg-surface p-6">
-      <div className="flex items-center justify-between mb-4">
-        <p className="font-mono text-lg">{evidence.title}</p>
-        <span className="text-risk-high font-mono text-sm">+{evidence.contribution}</span>
+  if (type === 'virustotal') {
+    if (!report) return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">No VirusTotal data.</p></div>;
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6">
+        <p className="font-mono text-sm mb-2">VirusTotal — {report.indicator}</p>
+        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{report.status}</span></p>
+        {report.status === 'ok' && report.stats && (
+          <ul className="text-sm space-y-1">
+            <li>Malicious: <span className="text-risk-high">{report.stats.malicious}</span></li>
+            <li>Suspicious: <span className="text-risk-medium">{report.stats.suspicious}</span></li>
+            <li>Harmless: <span className="text-risk-low">{report.stats.harmless}</span></li>
+          </ul>
+        )}
+        {report.status !== 'ok' && (
+          <p className="text-sm text-muted italic">A non-"ok" status means no usable report was retrieved — it does not mean the URL is safe.</p>
+        )}
+        {report.last_analysis_date && <p className="text-xs text-muted mt-3">Last analyzed: {report.last_analysis_date}</p>}
       </div>
-      <p className="text-muted text-sm mb-3">Source: {evidence.source}</p>
-      <ul className="space-y-2">
-        {evidence.findings.map((f, i) => (
-          <li key={i} className="text-sm text-white/90 flex gap-2">
-            <span className="text-accent">›</span>{f}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+    );
+  }
+
+  return <div className="border border-border rounded-xl bg-surface p-6"><p className="font-mono text-sm">{label}</p><p className="text-muted text-sm mt-2">Extracted indicator — no provider data checked yet.</p></div>;
 }
