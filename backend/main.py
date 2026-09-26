@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
+from analyzer.extractor import extract_indicators
+
 app = FastAPI()
 
 # Allow requests from the local Vite frontend during development.
@@ -35,9 +37,10 @@ def read_item(item_id: int, q: str | None = None):
 
 
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest) -> dict[str, str]:
-    """Acknowledge the submitted content; scam analysis will be added later."""
+def analyze(request: AnalyzeRequest) -> dict[str, str | dict[str, list[str]]]:
+    """Receive content and extract indicators for later scam analysis."""
     return {
         "message": "Content received",
         "content": request.content,
+        "indicators": extract_indicators(request.content),
     }
