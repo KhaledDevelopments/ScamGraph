@@ -43,7 +43,7 @@ For browser requests, the backend allows the local Vite origins
 `main.py` when the frontend uses a different address. CORS controls browser
 access; it is not authentication.
 
-## Run the CI checks locally
+## Optional local checks
 
 From `backend/`:
 
