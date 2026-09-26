@@ -12,7 +12,11 @@ def test_analyze_receives_content_without_changing_it():
     response = client.post("/analyze", json={"content": content})
 
     assert response.status_code == 200
-    assert response.json() == {
+    data = response.json()
+    assessment = data.pop("assessment")
+    assert assessment["assessment_status"] == "unavailable"
+    assert assessment["assessed_url"] is None
+    assert data == {
         "message": "Content received",
         "content": content,
         "indicators": {"emails": [], "urls": [], "domains": []},

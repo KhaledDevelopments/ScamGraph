@@ -1,1 +1,1 @@
-"""External threat-intelligence integrations."""
+"""Combine provider evidence and calculate risk independently of HTTP routes."""

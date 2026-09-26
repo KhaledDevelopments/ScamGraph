@@ -5,8 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from analyzer.extractor import extract_indicators
-from services.virustotal import lookup_urls
+from services.analysis import analyze_content
 
 # Load local keys while keeping existing environment variables authoritative.
 load_dotenv(Path(__file__).with_name(".env"), override=False)
@@ -46,10 +45,8 @@ def read_item(item_id: int, q: str | None = None):
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest) -> dict:
     """Extract indicators and enrich the first URL with existing VT evidence."""
-    indicators = extract_indicators(request.content)
     return {
         "message": "Content received",
         "content": request.content,
-        "indicators": indicators,
-        "threat_intelligence": {"virustotal": lookup_urls(indicators["urls"])},
+        **analyze_content(request.content),
     }

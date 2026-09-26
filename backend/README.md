@@ -2,7 +2,8 @@
 
 The backend receives and validates user input, then extracts URLs, email
 addresses, and domains. It retrieves an existing VirusTotal report for the
-first extracted URL. Risk scoring and saving messages are not implemented yet.
+first extracted URL and scores the available evidence. Saving messages is not
+implemented yet.
 
 ## Local setup (PowerShell)
 
@@ -41,7 +42,9 @@ Send `POST /analyze` with `Content-Type: application/json` and this body:
 {"content": "Contact support@example.com or visit https://example.com/login."}
 ```
 
-For example, without a VirusTotal key the response is HTTP 200:
+For example, without a VirusTotal key the response is HTTP 200. The extraction
+and provider portion is shown below; the response also includes `assessment`
+as described in the scoring section:
 
 ```json
 {
@@ -91,7 +94,7 @@ access; it is not authentication.
 
 ## VirusTotal reports
 
-`services/virustotal.py` calls the fixed VirusTotal API endpoint to retrieve an
+`providers/virustotal.py` calls the fixed VirusTotal API endpoint to retrieve an
 existing report. It sends only the selected URL (encoded as an identifier), not
 the full submitted message. It does not visit the suspicious URL or submit it
 for a new scan. The API key stays in the backend request header.
@@ -126,6 +129,27 @@ after the local cooldown expires.
 
 References: [URL reports](https://docs.virustotal.com/reference/url-info),
 [API limits](https://docs.virustotal.com/reference/public-vs-premium-api).
+
+## Risk assessment
+
+`services/analysis.py` connects extraction, provider lookup, and scoring. The
+response preserves `indicators` and `threat_intelligence` and adds `assessment`:
+
+- `risk_score`: evidence points from 0 to 100, not a probability.
+- `risk_level`: LOW (0–24), SUSPICIOUS (25–49), HIGH (50–74), CRITICAL (75–100).
+- `assessment_status`: unavailable, partial, or complete.
+- `assessed_url` and `scope`: only the first extracted URL is assessed.
+- `indicators`: scoring explanations, separate from top-level extracted indicators.
+- `evidence`, `missing_evidence`, `score_breakdown`, and `assessment_note`:
+  details of what was checked and what remains unknown.
+
+VirusTotal contributes 35 points for at least one malicious verdict and 20 more
+for at least three malicious verdicts. The other scoring rules are prepared but
+their providers are not connected, so live assessments are currently partial
+or unavailable. Missing checks remain `null`; client-supplied evidence is not
+used. A zero score does not establish safety. The frontend hides the numeric
+score and LOW label when the assessment is unavailable, and displays the scope
+and missing evidence for partial results. Other URLs are explicitly skipped.
 
 ## Optional local checks
 

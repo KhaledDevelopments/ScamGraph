@@ -1,6 +1,6 @@
 import pytest
 
-from services import virustotal
+from providers import virustotal
 
 
 @pytest.fixture(autouse=True)
