@@ -1,6 +1,24 @@
 export default function EvidencePanel({ node }) {
   const { type, label, report, isAssessed } = node.data;
 
+  if (type === 'ipinfo') {
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6 space-y-2 text-sm">
+        <p className="font-mono break-all">IPinfo — {report?.hostname || report?.indicator}</p>
+        <p className="text-muted">Status: {report?.status}</p>
+        {report?.ip && <p>IP address: {report.ip}</p>}
+        {report?.status === 'ok' ? (
+          <>
+            <p>Country: {report.country} ({report.country_code})</p>
+            <p>Network: {report.asn} — {report.as_name}</p>
+            <p className="break-all">Network domain: {report.as_domain}</p>
+          </>
+        ) : <p className="text-muted">IP context was not retrieved for this URL.</p>}
+        <p className="text-muted italic">One public IP for the first URL. It may belong to a CDN or shared host. Country and network ownership do not establish risk and add no points.</p>
+      </div>
+    );
+  }
+
   if (type === 'message') {
     return (
       <div className="border border-border rounded-xl bg-surface p-6">

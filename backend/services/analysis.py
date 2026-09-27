@@ -3,9 +3,8 @@
 from typing import Any
 
 from analyzer.extractor import extract_indicators
-from providers import google_safe_browsing, urlhaus
 from analyzer.heuristics import analyze_heuristics
-from providers import urlhaus
+from providers import google_safe_browsing, ipinfo, urlhaus
 from providers.virustotal import lookup_urls
 from services.scoring import calculate_risk
 
@@ -17,6 +16,7 @@ def analyze_content(content: str) -> dict[str, Any]:
     reports = lookup_urls(indicators["urls"])
     urlhaus_reports = urlhaus.lookup_urls(indicators["urls"])
     gsb_reports = google_safe_browsing.lookup_urls(indicators["urls"])
+    ip_reports = ipinfo.lookup_urls(indicators["urls"])
     report = reports[0] if reports else None
     malicious_count = (
         report["stats"]["malicious"]
@@ -35,6 +35,7 @@ def analyze_content(content: str) -> dict[str, Any]:
             "virustotal": reports,
             "urlhaus": urlhaus_reports,
             "google_safe_browsing": gsb_reports,
+            "ipinfo": ip_reports,
         },
         "assessment": {
             **result,

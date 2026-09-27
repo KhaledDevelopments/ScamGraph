@@ -1,6 +1,6 @@
 import pytest
 
-from providers import urlhaus, virustotal
+from providers import google_safe_browsing, ipinfo, urlhaus, virustotal
 
 
 @pytest.fixture(autouse=True)
@@ -9,6 +9,11 @@ def isolate_virustotal(monkeypatch):
     monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
     monkeypatch.delenv("VIRUSTOTAL_API_KEY", raising=False)
     monkeypatch.delenv("URLHAUS_AUTH_KEY", raising=False)
+    monkeypatch.delenv("IPINFO_TOKEN", raising=False)
+    monkeypatch.delenv("GOOGLE_SAFE_BROWSING_API_KEY", raising=False)
+    for provider in (ipinfo, google_safe_browsing):
+        monkeypatch.setattr(provider, "_cache", provider.OrderedDict())
+        monkeypatch.setattr(provider, "_cooldown_until", 0.0)
 
     def forbid_live_request(*args, **kwargs):
         raise AssertionError("Mock VirusTotal HTTP requests in this test")

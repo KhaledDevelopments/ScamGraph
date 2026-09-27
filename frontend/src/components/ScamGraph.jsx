@@ -27,13 +27,15 @@ function buildGraph(data) {
   const { urls = [], emails = [], domains = [] } = data.indicators || {};
   const reports = data.threat_intelligence?.virustotal || [];
   const urlhausReports = data.threat_intelligence?.urlhaus || [];
+  const ipReports = data.threat_intelligence?.ipinfo || [];
   const assessedUrl = data.assessment?.assessed_url;
   // Reserve two columns per URL for its sibling provider nodes. Other
   // indicators stay on the same level as URLs, outside those branches.
   const urlColumnCounts = urls.map((url) => {
     const hasVt = reports.some((r) => r.indicator === url);
     const hasUh = urlhausReports.some((r) => r.indicator === url);
-    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0));
+    const hasIp = ipReports.some((r) => r.indicator === url);
+    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0) + (hasIp ? 1 : 0));
   });
   const totalUrlColumns = urlColumnCounts.reduce((sum, c) => sum + c, 0);
   const columnCount = Math.max(1, totalUrlColumns + emails.length + domains.length);
@@ -44,35 +46,42 @@ function buildGraph(data) {
     const id = `url-${i}`;
     const report = reports.find((r) => r.indicator === url);
     const urlhausReport = urlhausReports.find((r) => r.indicator === url);
+    const ipReport = ipReports.find((r) => r.indicator === url);
     const isAssessed = url === assessedUrl;
     const vtMalicious = report?.status === 'ok' && report.stats?.malicious > 0;
     const uhMalicious = urlhausReport?.malicious === true;
     const malicious = vtMalicious || uhMalicious;
-    const branchX = i * COLUMN_WIDTH * 2;
-    nodes.push({ id, position: { x: branchX + COLUMN_WIDTH / 2, y: 160 }, data: { type: 'url', label: url, url, report, isAssessed }, style: malicious ? flaggedStyle : baseStyle });
+    const branchX = urlColumnCounts.slice(0, i).reduce((sum, count) => sum + count, 0) * COLUMN_WIDTH;
+    let childIndex = 0;
+    nodes.push({ id, position: { x: branchX + (urlColumnCounts[i] - 1) * COLUMN_WIDTH / 2, y: 160 }, data: { type: 'url', label: url, url, report, isAssessed }, style: malicious ? flaggedStyle : baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
 
     if (report) {
       const vtId = `vt-${i}`;
-      nodes.push({ id: vtId, position: { x: urlhausReport ? branchX : branchX + COLUMN_WIDTH / 2, y: 320 }, data: { type: 'virustotal', label: `VirusTotal: ${report.status}`, report }, style: vtMalicious ? flaggedStyle : baseStyle });
+      nodes.push({ id: vtId, position: { x: branchX + childIndex++ * COLUMN_WIDTH, y: 320 }, data: { type: 'virustotal', label: `VirusTotal: ${report.status}`, report }, style: vtMalicious ? flaggedStyle : baseStyle });
       edges.push({ id: `e-${id}-${vtId}`, source: id, target: vtId });
     }
     if (urlhausReport) {
       const uhId = `urlhaus-${i}`;
-      nodes.push({ id: uhId, position: { x: report ? branchX + COLUMN_WIDTH : branchX + COLUMN_WIDTH / 2, y: 320 }, data: { type: 'urlhaus', label: `URLhaus: ${urlhausReport.status}`, report: urlhausReport }, style: uhMalicious ? flaggedStyle : baseStyle });
+      nodes.push({ id: uhId, position: { x: branchX + childIndex++ * COLUMN_WIDTH, y: 320 }, data: { type: 'urlhaus', label: `URLhaus: ${urlhausReport.status}`, report: urlhausReport }, style: uhMalicious ? flaggedStyle : baseStyle });
       edges.push({ id: `e-${id}-${uhId}`, source: id, target: uhId });
+    }
+    if (ipReport) {
+      const ipId = `ipinfo-${i}`;
+      nodes.push({ id: ipId, position: { x: branchX + childIndex * COLUMN_WIDTH, y: 320 }, data: { type: 'ipinfo', label: `IPinfo: ${ipReport.ip || ipReport.status}`, report: ipReport }, style: baseStyle });
+      edges.push({ id: `e-${id}-${ipId}`, source: id, target: ipId });
     }
   });
 
   emails.forEach((email, i) => {
     const id = `email-${i}`;
-    nodes.push({ id, position: { x: (urls.length * 2 + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'email', label: email }, style: baseStyle });
+    nodes.push({ id, position: { x: (totalUrlColumns + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'email', label: email }, style: baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
   });
 
   domains.forEach((domain, i) => {
     const id = `domain-${i}`;
-    nodes.push({ id, position: { x: (urls.length * 2 + emails.length + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'domain', label: domain }, style: baseStyle });
+    nodes.push({ id, position: { x: (totalUrlColumns + emails.length + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'domain', label: domain }, style: baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
   });
 
