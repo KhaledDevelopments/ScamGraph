@@ -186,7 +186,23 @@ function buildGraph(data) {
 
 export default function ScamGraph({ data, onNodeClick }) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => buildGraph(data), [data]);
-  return <GraphCanvas key={JSON.stringify(data)} initialNodes={initialNodes} initialEdges={initialEdges} onNodeClick={onNodeClick} />;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted">
+        <span className="font-mono uppercase tracking-wider text-white/90 font-medium">
+          Evidence & Correlation Graph
+        </span>
+        <div className="flex flex-wrap items-center gap-3 font-mono text-[11px]">
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#38BDF8]"></span> URL/Input</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#A78BFA]"></span> Email</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#6EE7B7]"></span> Domain</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#94A3B8]"></span> Provider</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#E5484D]"></span> Threat</span>
+        </div>
+      </div>
+      <GraphCanvas key={JSON.stringify(data)} initialNodes={initialNodes} initialEdges={initialEdges} onNodeClick={onNodeClick} />
+    </div>
+  );
 }
 
 function GraphCanvas({ initialNodes, initialEdges, onNodeClick }) {

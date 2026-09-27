@@ -5,6 +5,13 @@ const levelColor = {
   LOW: 'text-risk-low',
 };
 
+const levelBg = {
+  CRITICAL: 'bg-risk-high',
+  HIGH: 'bg-risk-high',
+  SUSPICIOUS: 'bg-risk-medium',
+  LOW: 'bg-risk-low',
+};
+
 export default function RiskScore({ assessment }) {
   const { risk_score, risk_level, assessment_status, missing_evidence, assessment_note } = assessment;
 
@@ -34,8 +41,27 @@ export default function RiskScore({ assessment }) {
           {risk_score}<span className="text-xl text-muted">/100</span>
         </p>
       </div>
+
+      <div className="mt-4 space-y-1.5">
+        <div className="h-2 w-full bg-slate-800/80 rounded-full overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 rounded-full ${levelBg[risk_level] || 'bg-muted'}`}
+            style={{ width: `${Math.max(5, Math.min(100, risk_score))}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] font-mono text-muted uppercase tracking-wider px-0.5">
+          <span>Low (0)</span>
+          <span>Suspicious (25)</span>
+          <span>High (50)</span>
+          <span>Critical (75–100)</span>
+        </div>
+      </div>
+
       {assessment.risk_level_reason && (
-        <p className="text-sm text-risk-high mt-3">{assessment.risk_level_reason}</p>
+        <div className="mt-4 p-3 rounded-lg bg-risk-high/10 border border-risk-high/30 text-sm text-risk-high flex items-start gap-2.5">
+          <span className="text-base leading-none">⚠️</span>
+          <span>{assessment.risk_level_reason}</span>
+        </div>
       )}
       <p className="text-xs text-muted mt-3">{assessment.scope}</p>
       {assessment.heuristic_findings?.length > 0 && (
