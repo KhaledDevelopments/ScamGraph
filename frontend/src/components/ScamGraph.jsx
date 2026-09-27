@@ -195,9 +195,18 @@ function GraphCanvas({ initialNodes, initialEdges, onNodeClick }) {
 
   return (
     <div style={{ height: '460px', width: '100%' }} className="border border-border rounded-xl overflow-hidden">
-      <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-        onNodeClick={(e, node) => onNodeClick({ ...node, data: { ...node.data, label: node.data.fullLabel } })}
-        nodesConnectable={false} minZoom={0.05} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}>
+      <ReactFlow 
+        nodes={nodes} 
+        edges={edges} 
+        onNodesChange={onNodesChange} 
+        onEdgesChange={onEdgesChange}
+        onNodeClick={(e, node) => 
+        onNodeClick({ ...node, data: { ...node.data, label: node.data.fullLabel } })}
+        nodesConnectable={false} 
+        nodesDraggable={false}
+        minZoom={0.05} 
+        fitView 
+        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}>
         <Background color="#253147" />
         <Controls />
       </ReactFlow>
