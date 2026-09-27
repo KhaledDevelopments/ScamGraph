@@ -2,14 +2,39 @@ import { useMemo } from 'react';
 import ReactFlow, { Background, Controls, useNodesState, useEdgesState } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-const NODE_WIDTH = 190;
+const NODE_WIDTH = 220;
 
-const COLUMN_WIDTH = 230;
+const COLUMN_WIDTH = 250;
+
+const TYPE_BADGES = {
+  message: { label: 'INPUT', color: '#38BDF8' },
+  url: { label: 'URL', color: '#38BDF8' },
+  email: { label: 'EMAIL', color: '#A78BFA' },
+  domain: { label: 'DOMAIN', color: '#6EE7B7' },
+  virustotal: { label: 'VIRUSTOTAL', color: '#94A3B8' },
+  urlhaus: { label: 'URLHAUS', color: '#94A3B8' },
+  google_safe_browsing: { label: 'SAFE BROWSING', color: '#94A3B8' },
+  ipinfo: { label: 'IPINFO', color: '#94A3B8' },
+};
 
 const baseStyle = {
-  background: '#141B2D', color: '#fff', border: '1px solid #253147',
-  fontFamily: 'monospace', fontSize: '12px', width: NODE_WIDTH, height: 64,
-  padding: '20px 12px', whiteSpace: 'nowrap', wordBreak: 'break-word', textAlign: 'center', lineHeight: '1.4',
+  background: '#141B2D',
+  color: '#fff',
+  border: '1px solid #253147',
+  borderRadius: '8px',
+  fontFamily: 'monospace',
+  fontSize: '11px',
+  width: NODE_WIDTH,
+  minHeight: 68,
+  height: 'auto',
+  padding: '10px 12px',
+  textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+  cursor: 'pointer',
 };
 
 const flaggedStyle = { 
@@ -17,8 +42,7 @@ const flaggedStyle = {
   background: '#3B1418', 
   color: '#fff', 
   border: '1px solid #E5484D', 
-  fontFamily: 'monospace', 
-  fontSize: '12px' 
+  boxShadow: '0 4px 14px rgba(229, 72, 77, 0.35)',
 };
 
 function buildGraph(data) {
@@ -91,16 +115,71 @@ function buildGraph(data) {
   });
 
   return {
-    nodes: nodes.map((node) => ({
-      ...node,
-      style: { ...baseStyle, ...node.style },
-      data: {
-        ...node.data,
-        label: <span title={node.data.label} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.data.label}</span>,
-        fullLabel: node.data.label,
-      },
+    nodes: nodes.map((node) => {
+      const badge = TYPE_BADGES[node.data.type] || {
+        label: (node.data.type || '').toUpperCase(),
+        color: '#94A3B8',
+      };
+      const isFlagged = node.style === flaggedStyle || node.data.malicious;
+      const badgeColor = isFlagged ? '#F87171' : badge.color;
+
+      let displayValue = node.data.label;
+      if (node.data.type === 'message') {
+        displayValue = 'Message';
+      } else if (node.data.type === 'virustotal' && displayValue.startsWith('VirusTotal: ')) {
+        displayValue = displayValue.replace('VirusTotal: ', '');
+      } else if (node.data.type === 'urlhaus' && displayValue.startsWith('URLhaus: ')) {
+        displayValue = displayValue.replace('URLhaus: ', '');
+      } else if (node.data.type === 'google_safe_browsing' && displayValue.startsWith('Safe Browsing: ')) {
+        displayValue = displayValue.replace('Safe Browsing: ', '');
+      } else if (node.data.type === 'ipinfo' && displayValue.startsWith('IPinfo: ')) {
+        displayValue = displayValue.replace('IPinfo: ', '');
+      }
+
+      return {
+        ...node,
+        style: { ...baseStyle, ...node.style },
+        data: {
+          ...node.data,
+          label: (
+            <div style={{ width: '100%', pointerEvents: 'none' }}>
+              <div
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  color: badgeColor,
+                  marginBottom: '3px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {isFlagged ? `⚠️ ${badge.label}` : badge.label}
+              </div>
+              <div
+                title={node.data.label}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  fontSize: '11px',
+                  lineHeight: '1.3',
+                  wordBreak: 'break-all',
+                  whiteSpace: 'normal',
+                  color: '#F8FAFC',
+                }}
+              >
+                {displayValue}
+              </div>
+            </div>
+          ),
+          fullLabel: node.data.label,
+        },
+      };
+    }),
+    edges: edges.map((edge) => ({
+      ...edge,
+      type: 'smoothstep',
+      style: { stroke: '#334155', strokeWidth: 1.5 },
     })),
-    edges: edges.map((edge) => ({ ...edge, type: 'smoothstep' })),
   };
 }
 

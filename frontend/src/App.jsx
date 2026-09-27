@@ -47,7 +47,7 @@ function App() {
         indicators: result.indicators,
       });
       setExplanation(res.data);
-    } catch (err) {
+    } catch {
       setExplanation({ status: 'unavailable', explanation: null });
     } finally {
       setExplaining(false);
