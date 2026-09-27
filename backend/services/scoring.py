@@ -1,10 +1,12 @@
-"""Score server-collected evidence for one URL and its related entities.
+"""Score message warning signs and server-collected evidence for the first URL.
 
 None means unchecked or unavailable, not a negative finding.
 VirusTotal consensus counts malicious verdicts only.
 """
 
 from typing import Any
+
+from analyzer.heuristics import HEURISTIC_RULES
 
 MAX_RISK_SCORE = 100
 VENDOR_CONSENSUS_THRESHOLD = 3
@@ -30,8 +32,9 @@ def calculate_risk(
     domain_age_days: int | None = None,
     suspicious_ip: bool | None = None,
     connected_to_malicious_entity: bool | None = None,
+    heuristic_types: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    """Combine six weighted signals without treating missing evidence as clean.
+    """Combine provider signals and local findings without assuming missing is clean.
 
     All inputs must come from server-side evidence collection. Integer inputs
     must be nonnegative; boolean inputs distinguish a checked negative (False)
@@ -108,6 +111,11 @@ def calculate_risk(
             "Connected to a known malicious entity",
         ),
     ]
+    for kind in dict.fromkeys(heuristic_types):
+        if kind not in HEURISTIC_RULES:
+            raise ValueError(f"Unknown heuristic: {kind}")
+        weight, _, description = HEURISTIC_RULES[kind]
+        rules.append((kind, weight, True, description))
     breakdown = [
         {
             "signal": name,
@@ -125,7 +133,7 @@ def calculate_risk(
     ]
     score = min(sum(item["points"] for item in breakdown), MAX_RISK_SCORE)
     missing = [name for name, value in evidence.items() if value is None]
-    if len(missing) == len(evidence):
+    if len(missing) == len(evidence) and not heuristic_types:
         assessment_status = "unavailable"
     elif missing:
         assessment_status = "partial"
@@ -147,5 +155,6 @@ def calculate_risk(
         "assessment_note": (
             "Score reflects available evidence, not a probability or guarantee of safety. "
             "Unchecked signals add no points."
+            " Local language and domain checks are warning signs, not proof of a scam."
         ),
     }

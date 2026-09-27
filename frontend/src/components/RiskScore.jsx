@@ -34,6 +34,18 @@ export default function RiskScore({ assessment }) {
           {risk_score}<span className="text-xl text-muted">/100</span>
         </p>
       </div>
+      <p className="text-xs text-muted mt-3">{assessment.scope}</p>
+      {assessment.heuristic_findings?.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm font-medium">Local warning signs</p>
+          {assessment.heuristic_findings.map((finding) => (
+            <div key={finding.type} className="border border-border rounded-lg p-3 text-sm">
+              <p>{finding.description} <span className="text-risk-medium">(+{finding.score})</span></p>
+              <p className="text-muted mt-1 break-words">Matched text: “{finding.matched_text}”</p>
+            </div>
+          ))}
+        </div>
+      )}
       {missing_evidence?.length > 0 && (
         <p className="text-xs text-muted mt-3">Not checked: {missing_evidence.join(', ')}</p>
       )}
