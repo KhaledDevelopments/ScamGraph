@@ -93,7 +93,7 @@ function buildGraph(data) {
     if (report) providerNodes.push({ id: `vt-${i}`, label: `VirusTotal: ${formatStatus(report.status)}`, type: 'virustotal', report, malicious: vtMalicious });
     if (urlhausReport) providerNodes.push({ id: `urlhaus-${i}`, label: `URLhaus: ${formatStatus(urlhausReport.status)}`, type: 'urlhaus', report: urlhausReport, malicious: uhMalicious });
     if (gsbReport) providerNodes.push({ id: `gsb-${i}`, label: `Safe Browsing: ${formatStatus(gsbReport.status)}`, type: 'google_safe_browsing', report: gsbReport, malicious: gsbMalicious });
-    if (ipReport) providerNodes.push({ id: `ipinfo-${i}`, label: `IPinfo: ${ipReport.ip || STATUS_LABELS[ipReport.status] || ipReport.status}`, type: 'ipinfo', report: ipReport, malicious: false });
+    if (ipReport) providerNodes.push({ id: `ipinfo-${i}`, label: `IPinfo: ${ipReport.ip || formatStatus(ipReport.status)}`, type: 'ipinfo', report: ipReport, malicious: false });
 
     providerNodes.forEach((p, j) => {
       nodes.push({ id: p.id, position: { x: branchX + j * COLUMN_WIDTH, y: 320 }, data: { type: p.type, label: p.label, report: p.report }, style: p.malicious ? flaggedStyle : baseStyle });
