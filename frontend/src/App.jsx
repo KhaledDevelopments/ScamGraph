@@ -1,64 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import InputPanel from './components/InputPanel';
 import RiskScore from './components/RiskScore';
 import ScamGraph from './components/ScamGraph';
 import EvidencePanel from './components/EvidencePanel';
+import { createAnalysisSession, INITIAL_ANALYSIS_STATE } from './utils/analysisSession';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 function App() {
-  const [result, setResult] = useState(null);
+  const [state, setState] = useState(INITIAL_ANALYSIS_STATE);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [explanation, setExplanation] = useState(null);
-  const [explaining, setExplaining] = useState(false);
+  const { result, loading, error, explanation, explaining } = state;
+  const session = useMemo(() => createAnalysisSession({
+    request: async (path, body, signal) => {
+      const response = await axios.post(`${API_BASE_URL}${path}`, body, { signal });
+      return response.data;
+    },
+    onChange: setState,
+  }), []);
 
-  const handleAnalyze = async (content) => {
-    if (loading || !content.trim()) return;
-    setLoading(true);
-    setError(null);
+  useEffect(() => () => session.dispose(), [session]);
+
+  const handleAnalyze = (content) => {
     setSelectedNode(null);
-    setExplanation(null);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/analyze`, { content });
-      if (!res.data?.assessment) {
-        setError('The backend returned an outdated response. Restart the backend and try again.');
-        setResult(null);
-        return;
-      }
-      setResult(res.data);
-    } catch {
-      setError('Could not reach the analysis server. Is the backend running?');
-      setResult(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExplain = async () => {
-    if (!result) return;
-    setExplaining(true);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/explain`, {
-        content: result.content,
-        assessment: result.assessment,
-        indicators: result.indicators,
-      });
-      setExplanation(res.data);
-    } catch {
-      setExplanation({ status: 'unavailable', explanation: null });
-    } finally {
-      setExplaining(false);
-    }
+    return session.analyze(content);
   };
 
   const handleReset = () => {
-    setResult(null);
+    session.reset();
     setSelectedNode(null);
-    setError(null);
-    setExplanation(null);
   };
 
   return (
@@ -67,7 +38,7 @@ function App() {
         <div className="mb-10">
           <p className="text-accent font-mono text-sm mb-2">threat analysis console</p>
           <h1 className="text-4xl font-bold tracking-tight">ScamGraph</h1>
-          <p className="text-muted mt-2">Paste a suspicious message or link. We'll show you exactly why it's dangerous.</p>
+          <p className="text-muted mt-2">Paste a suspicious message or link to inspect warning signs and available threat intelligence.</p>
         </div>
 
         <InputPanel
@@ -77,8 +48,8 @@ function App() {
           hasResult={Boolean(result)}
         />
 
-        {loading && <p className="text-muted mt-6">Analyzing...</p>}
-        {error && <p className="text-risk-high mt-6">{error}</p>}
+        {loading && <p role="status" className="text-muted mt-6">Analyzing...</p>}
+        {error && <p role="alert" className="text-risk-high mt-6">{error}</p>}
 
         {result && !loading && (
           <div className="mt-8 space-y-6">
@@ -89,7 +60,7 @@ function App() {
             <div className="border border-border rounded-xl bg-surface p-6">
               {!explanation && (
                 <button
-                  onClick={handleExplain}
+                  onClick={session.explain}
                   disabled={explaining}
                   className="text-accent hover:text-sky-400 text-sm font-medium disabled:opacity-40"
                 >
@@ -97,7 +68,12 @@ function App() {
                 </button>
               )}
               {explanation?.status === 'ok' && (
-                <p className="text-sm text-white/90 leading-relaxed">{explanation.explanation}</p>
+                <div>
+                  {explanation.source === 'fallback' && (
+                    <p className="text-xs text-muted mb-2">Evidence summary · AI explanation unavailable</p>
+                  )}
+                  <p className="text-sm text-white/90 leading-relaxed">{explanation.explanation}</p>
+                </div>
               )}
               {explanation && explanation.status !== 'ok' && (
                 <p className="text-sm text-muted italic">Plain-English explanation unavailable right now.</p>

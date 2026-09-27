@@ -29,14 +29,19 @@ def _result(url: str, status: str) -> dict:
 def _report_result(url: str, payload: object) -> dict:
     if not isinstance(payload, dict):
         return _result(url, "unavailable")
-    matches = payload.get("matches")
-    if matches is None:
-        # An empty body/object means Safe Browsing checked and found nothing.
+    if "matches" not in payload:
+        # An empty object means Safe Browsing checked and found nothing.
         return _result(url, "not_found")
+    matches = payload["matches"]
     if not isinstance(matches, list) or not all(
-        isinstance(m, dict) and isinstance(m.get("threatType"), str) for m in matches
+        isinstance(m, dict)
+        and isinstance(m.get("threatType"), str)
+        and m["threatType"].strip()
+        for m in matches
     ):
         return _result(url, "unavailable")
+    if not matches:
+        return _result(url, "not_found")
     threat_types = sorted({m["threatType"] for m in matches})
     return {
         "provider": "google_safe_browsing",

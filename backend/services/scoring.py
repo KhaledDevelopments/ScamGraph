@@ -132,6 +132,18 @@ def calculate_risk(
         for name, weight, matched, _ in rules
     ]
     score = min(sum(item["points"] for item in breakdown), MAX_RISK_SCORE)
+    level = risk_level(score)
+    level_reason = None
+    if (reputation is True or google_safe_browsing_flagged is True) and level in {
+        "LOW",
+        "SUSPICIOUS",
+    }:
+        level = "HIGH"
+        level_reason = (
+            "A threat provider flagged this URL as malicious or unsafe, so the "
+            "risk level is at least HIGH. The numeric score still totals only "
+            "the matched evidence."
+        )
     missing = [name for name, value in evidence.items() if value is None]
     if len(missing) == len(evidence) and not heuristic_types:
         assessment_status = "unavailable"
@@ -142,7 +154,8 @@ def calculate_risk(
 
     return {
         "risk_score": score,
-        "risk_level": risk_level(score),
+        "risk_level": level,
+        "risk_level_reason": level_reason,
         "indicators": [
             f"{description} (+{weight})"
             for _, weight, matched, description in rules
@@ -156,5 +169,6 @@ def calculate_risk(
             "Score reflects available evidence, not a probability or guarantee of safety. "
             "Unchecked signals add no points."
             " Local language and domain checks are warning signs, not proof of a scam."
+            + (f" {level_reason}" if level_reason else "")
         ),
     }

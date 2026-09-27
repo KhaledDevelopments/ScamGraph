@@ -1,234 +1,193 @@
-# ScamGraph backend
+﻿# ScamGraph backend
 
-The backend receives and validates user input, then extracts URLs, email
-addresses, and domains. It retrieves an existing VirusTotal report for the
-first extracted URL, checks URLhaus, and scores the available evidence. Saving messages is not
-implemented yet.
+The FastAPI backend validates message text, extracts indicators, applies local
+language/domain checks, and enriches the first URL through VirusTotal, URLhaus,
+Google Safe Browsing, and IPinfo. Gemini optionally explains the recorded
+assessment; a local evidence summary works without Gemini. Saving messages and
+user accounts are not implemented.
 
-## Local setup (PowerShell)
+## Local setup
 
-From the repository root, using uv:
+Use Python 3.12 and uv. From the repository root in PowerShell:
 
 ```powershell
 cd backend
 uv venv --python 3.12
-uv pip install -r requirements-dev.txt
+uv pip install --python .venv/Scripts/python.exe -r requirements-dev.txt
+Copy-Item .env.example .env
 .\.venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
 
-The development server runs at `http://127.0.0.1:8000`. Open
-`http://127.0.0.1:8000/docs` to send requests using the interactive API docs.
+For macOS/Linux:
 
-## API keys
-
-Store local provider keys in `backend/.env`. Create that file if needed and
-set `VIRUSTOTAL_API_KEY` to your VirusTotal key. The `.env` is ignored by Git.
-Each developer running the backend needs their own local `.env`. Use personal
-API keys or share a permitted team key privately through a password manager.
-
-The app loads this file at startup using `python-dotenv`, regardless of the
-terminal's working directory. Existing environment variables take precedence
-over values in the file. Restart the server after changing your keys.
-
-The VirusTotal service reads `VIRUSTOTAL_API_KEY` from the environment.
-Input extraction works without keys; in that case the provider result is
-`not_configured`. URLhaus is configured separately below; the remaining provider
-integrations are not implemented yet.
-
-## URLhaus setup
-
-Obtain an Auth-Key from https://auth.abuse.ch/ and add it to `backend/.env`:
-
-```dotenv
-URLHAUS_AUTH_KEY=your_key_here
+```sh
+cd backend
+uv venv --python 3.12
+uv pip install --python .venv/bin/python -r requirements-dev.txt
+cp .env.example .env
+.venv/bin/python -m uvicorn main:app --reload
 ```
 
-Restart the backend after changing this file. The key stays on the backend.
-`providers/urlhaus.py` queries the existing record for the first extracted URL
-using the [URLhaus lookup API](https://urlhaus-api.abuse.ch/#urlinfo).
-It sends only that URL, does not submit it for scanning, and does not visit it
-or download payloads. Additional URLs have status `skipped`.
+The server runs at `http://127.0.0.1:8000`; interactive API docs are at
+`http://127.0.0.1:8000/docs`. The Windows launcher `./start-dev.ps1 -Install`, run
+from the repository root, uses port **8001** by default and configures the frontend
+to match. See the [frontend setup](../frontend/README.md) for manual startup.
 
-Results appear in `threat_intelligence.urlhaus` and in the frontend graph.
-Click a URLhaus node to see its status, tags, and recorded online/offline state.
-A valid malware listing sets `malicious: true`, including offline historical
-listings. `no_results` becomes `not_found` with `malicious: false`: this means
-not listed, not safe. Missing keys, failures, and skipped checks leave
-`malicious: null`. Statuses include `ok`, `not_found`, `not_configured`,
-`unavailable`, `rate_limited`, and `skipped`.
+## Optional provider keys
 
-Requests time out after five seconds without retries or redirects. Matches and
-misses are cached for 15 minutes (128 entries); HTTP 429 triggers a 60-second
-cooldown. State is local to one backend process. URLhaus tracks malware
-distribution, so absence of a record does not rule out phishing or other scams.
+Copy [`.env.example`](.env.example) to `backend/.env` and fill in the keys you want
+to use. Do not overwrite an existing `.env` containing your keys. All five values
+are optional; local extraction, warning signs, and fallback explanations work
+with blank values.
 
-## Receive a message
+| Variable | Enables |
+| --- | --- |
+| `VIRUSTOTAL_API_KEY` | Existing URL reports from VirusTotal. |
+| `URLHAUS_AUTH_KEY` | Malware URL records from URLhaus. |
+| `GOOGLE_SAFE_BROWSING_API_KEY` | Google Safe Browsing threat-list matching. |
+| `IPINFO_TOKEN` | IPinfo Lite country and network context. |
+| `GEMINI_API_KEY` | Gemini explanations when requested. |
 
-Send `POST /analyze` with `Content-Type: application/json` and this body:
+Use a Google project key with the Safe Browsing API enabled for
+`GOOGLE_SAFE_BROWSING_API_KEY`, and a Gemini API key for `GEMINI_API_KEY`. Configure
+these separately even if you manage them through the same Google account.
+URLhaus uses an abuse.ch Auth-Key; IPinfo uses a Lite API token.
+
+The backend loads `.env` at startup independently of the terminal's working
+directory. Existing environment variables take precedence. Restart the backend
+after changing configuration. `.env` is ignored by Git; credentials remain on
+the backend and must never be added to frontend environment variables.
+
+## API and input validation
+
+Send `POST /analyze` with `Content-Type: application/json`:
 
 ```json
 {"content": "Contact support@example.com or visit https://example.com/login."}
 ```
 
-For example, without a VirusTotal key the response is HTTP 200. The extraction
-and provider portion is shown below; the response also includes `assessment`
-as described in the scoring section:
+The response echoes `content` and includes:
 
-```json
-{
-  "message": "Content received",
-  "content": "Contact support@example.com or visit https://example.com/login.",
-  "indicators": {
-    "emails": ["support@example.com"],
-    "urls": ["https://example.com/login"],
-    "domains": ["example.com"]
-  },
-  "threat_intelligence": {
-    "virustotal": [
-      {
-        "provider": "virustotal",
-        "indicator": "https://example.com/login",
-        "status": "not_configured",
-        "stats": null,
-        "last_analysis_date": null
-      }
-    ]
-  }
-}
-```
+- `indicators`: extracted `urls`, `emails`, and `domains`.
+- `threat_intelligence`: `virustotal`, `urlhaus`, `google_safe_browsing`, and
+  `ipinfo` result lists, with provider status and available details.
+- `assessment`: score, risk level, scope, local findings, and missing evidence.
 
-`content` must be a non-empty string containing at least one non-whitespace
-character. Invalid input returns HTTP 422 with a `detail` list describing the
-validation errors. Accepted content is returned unchanged, including whitespace.
+Send `POST /explain` with the original `content` and the `assessment` and
+`indicators` returned by `/analyze`. This endpoint explains the supplied
+assessment; it does not rerun the checks. The response contains `explanation`,
+`status: "ok"`, and `source: "gemini"` or `source: "fallback"`.
 
-`analyzer/extractor.py` scans the text locally; it does not visit links or resolve
-domains. It handles explicit `http://` and `https://` links and common ASCII
-email addresses. Domains come from URL hostnames and email addresses, with
-subdomains preserved and domain names lowercased. Duplicates are removed in
-first-seen order; URLs and email local parts retain their original case. IP-based
-links are included in `urls`, but their IP addresses are not listed as domains.
+Both endpoints require `content` to be a string containing non-whitespace text
+and at most **20,000 characters**. Invalid input returns HTTP 422 with a `detail`
+list. Accepted content is preserved, including whitespace. The content limit
+does not constitute a general HTTP body-size or request-rate limit.
 
-This prototype skips unparseable URLs and strips common trailing prose
-punctuation. It does not validate that a URL exists or is safe. Standalone
-domains, `www.` links without a scheme, defanged links such as `hxxps://`, and
-unusual email formats are outside its current scope. Trailing punctuation is
-ambiguous in plain text; a URL intentionally ending in punctuation may be
-trimmed. Empty matches produce empty lists, not a safe/unsafe verdict.
+The extractor handles explicit `http://` and `https://` URLs and common ASCII
+email addresses. It lowercases domains, preserves subdomains, removes duplicates
+in first-seen order, and trims common trailing prose punctuation. It does not
+visit links. Bare domains, scheme-less `www.` links, defanged links such as
+`hxxps://`, and unusual email formats are outside its current scope. IP-based URLs
+are included in `urls`, but their IP addresses are not listed as domains.
 
-For browser requests, the backend allows the local Vite origins
-`http://localhost:5173` and `http://127.0.0.1:5173`. Update `allow_origins` in
-`main.py` when the frontend uses a different address. CORS controls browser
-access; it is not authentication.
+Browser requests are allowed from `http://localhost:5173` and
+`http://127.0.0.1:5173`. Update `allow_origins` in `main.py` when deploying the
+frontend elsewhere. CORS does not provide authentication. The prototype has no
+application-wide request limit; provider-specific limits below are per process.
 
-## VirusTotal reports
+## Provider behavior and privacy
 
-`providers/virustotal.py` calls the fixed VirusTotal API endpoint to retrieve an
-existing report. It sends only the selected URL (encoded as an identifier), not
-the full submitted message. It does not visit the suspicious URL or submit it
-for a new scan. The API key stays in the backend request header.
+Only the first unique extracted URL receives provider checks. Remaining URLs
+have status `skipped`. The backend does not visit submitted URLs, download their
+content, or submit them for a new VirusTotal scan.
 
-Every result identifies the URL and provider, with one of these statuses:
+- **VirusTotal** receives the selected URL encoded as its report identifier.
+  Existing reports contain malicious, suspicious, harmless, and undetected
+  vendor counts. HTTP 404 means no report, not a clean verdict. Requests time out
+  after five seconds. The implementation permits four outbound requests per
+  rolling minute and applies a cooldown after HTTP 429.
+- **URLhaus** receives the selected URL for an existing malware-record lookup.
+  A valid listing counts as malicious even when the recorded URL is offline.
+  `no_results` means not listed, not safe. Requests time out after five seconds.
+- **Google Safe Browsing** receives the selected URL through the v4
+  `threatMatches:find` endpoint. Valid threat matches set `flagged: true` and list
+  their threat types. An empty response object or empty `matches` list is a
+  checked negative; malformed responses remain unknown. Requests time out after
+  five seconds.
+- **IPinfo** supplies country, ASN, network owner, and network domain for one
+  public IP. For a domain, Cloudflare's public DNS-over-HTTPS resolver receives
+  its hostname; the backend tries A records and then AAAA. IPinfo receives the
+  selected public IP. Literal public IPs skip DNS, and private/local IPs are not
+  sent to IPinfo. No DNS or IPinfo request is made without `IPINFO_TOKEN`.
+  Each request has a five-second timeout; one lookup may require two DNS
+  requests and one IPinfo request. This is network context, not IP reputation,
+  and adds no risk points.
 
-| Status | Meaning |
-| --- | --- |
-| `ok` | Valid report; `stats` contains malicious, suspicious, harmless, and undetected counts. |
-| `not_found` | VirusTotal has no report (HTTP 404). |
-| `rate_limited` | The local rate budget or VirusTotal quota was reached. |
-| `unavailable` | Timeout, network failure, invalid credentials, malformed report, or another provider error. |
-| `not_configured` | The backend has no nonblank VirusTotal key. |
-| `skipped` | This URL was not checked because only the first unique URL is checked per message. |
+Successful reputation results and misses are cached for 15 minutes with a
+128-entry limit per provider. IPinfo caches successful enrichment results with
+the same lifetime and limit. HTTP 429 starts a cooldown of at least 60 seconds.
+Missing keys, failures, rate limits, and skipped checks remain unknown rather
+than fabricated negative findings. Common statuses are `ok`, `not_found`,
+`not_configured`, `unavailable`, `rate_limited`, and `skipped`; IPinfo also uses
+`non_public` and `unresolved`.
 
-`last_analysis_date` is the report's Unix timestamp when provided. Failed and
-skipped lookups have `stats: null`, not fabricated zero counts. Neither missing
-evidence nor zero detections establishes that a URL is safe.
+**Gemini receives the full message, assessment, and extracted indicators when
+the user requests an explanation and `GEMINI_API_KEY` is configured.** The backend
+currently uses `gemini-flash-lite-latest` with an eight-second timeout. Its prompt
+asks for an evidence-grounded explanation that preserves uncertainty and the
+first-URL scope. A generated explanation can still be mistaken; the structured
+assessment remains the record of the checks.
 
-The HTTP timeout is five seconds, with no automatic retries or redirects.
-Successful reports and 404 results are cached for 15 minutes (up to 128 entries).
-The service permits four outbound requests per rolling minute across incoming
-requests, and pauses uncached lookups for at least a minute after a provider 429.
-Cached reports are still available during a cooldown.
+Without a key, or after a failed/invalid Gemini response, a deterministic local
+summary describes the recorded findings and missing checks. The response's
+`source` distinguishes the two. Successful Gemini explanations are cached for
+**900 seconds**, up to **128 entries**, keyed by the exact message, complete
+assessment, indicators, and credential identity. Changed evidence invalidates a
+previous explanation. Fallback text is not cached, allowing a recovered provider
+to be retried on the next request.
 
-These limits and the cache are in memory: use one backend worker for this
-prototype. Restarting clears them; multiple workers or deployments would need
-shared storage for limits. VirusTotal enforces the key's overall quotas,
-including calls made by other apps. Its public API allows 4 requests/minute and
-500/day and is restricted to noncommercial use. A daily quota error may continue
-after the local cooldown expires.
-
-References: [URL reports](https://docs.virustotal.com/reference/url-info),
-[API limits](https://docs.virustotal.com/reference/public-vs-premium-api).
-
-## IPinfo network context
-
-Add your IPinfo Lite token to `backend/.env`, then restart the backend:
-
-```dotenv
-IPINFO_TOKEN=your_token_here
-```
-
-The [IPinfo Lite API](https://ipinfo.io/developers/lite-api) supplies country,
-ASN, network owner, and network domain for one public IP of the first URL.
-`threat_intelligence.ipinfo` contains the result; click its graph node for details.
-For a domain, the provider sends only the hostname to Cloudflare's public
-[DNS-over-HTTPS resolver](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/dns-json/),
-tries A records then AAAA, and sends only the chosen IP to IPinfo. Literal public
-IPs skip DNS. It never visits the submitted URL. Private/local IPs are not sent
-to IPinfo. No DNS or IPinfo requests are made without a token.
-
-Statuses are `ok`, `not_configured`, `non_public`, `unresolved`, `unavailable`,
-`rate_limited`, and `skipped`. Requests have five-second timeouts, no retries,
-and no redirects; a domain lookup can require two DNS requests plus one IPinfo
-request. Successful enrichment snapshots are cached for 15 minutes (128 entries,
-one backend process); HTTP 429 from IPinfo starts a 60-second cooldown.
-
-IPinfo Lite is context, not IP reputation: it adds no risk points and does not
-fill `suspicious_ip`. A network may be a CDN/shared host, and the selected address
-is not an exhaustive view of the domain's infrastructure. Test by analyzing
-`https://8.8.8.8` (direct IP) or `https://example.com` (DNS plus enrichment).
+All caches and cooldowns live in backend process memory and reset on restart.
+Use one worker for this prototype; multiple workers would need shared limits
+and caching. Provider-side quotas and data handling still apply to outbound
+requests. Avoid using private messages or sensitive URL query parameters in a
+demo intended for external services.
 
 ## Risk assessment
 
-Local checks in `analyzer/heuristics.py` run without API keys. They examine English
-message text for urgency/account threats (+5) and credential/sign-in requests
-(+10). A first organization rule flags an explicit UNB mention when the first
-URL's hostname is outside `unb.ca` and its subdomains (+15). The mapping is based
-on [UNB's official website](https://www.unb.ca/); other organizations are not
-checked yet. URLs and email addresses are excluded from language matching.
-Common negations such as "never share your password" are suppressed.
+Local checks run without API keys. They flag English urgency/account threats
+(+5), credential/sign-in requests (+10), and an explicit UNB mention paired with
+a first URL outside `unb.ca` and its subdomains (+15). URLs and email addresses
+are excluded from language matching; common negations are suppressed. These
+phrase rules do not understand all context, and other organizations are not yet
+checked. Findings appear in `assessment.heuristic_findings`.
 
-Each rule adds points at most once per message, with the combined score capped
-at 100. `assessment.heuristic_findings` contains the matched text, explanation,
-severity, and points; the frontend shows these beneath the score. Positive local
-findings can produce a partial assessment even when both providers are unavailable.
-Without provider evidence or local matches, risk remains unknown rather than safe.
-The scope now includes message language plus the first URL's provider evidence
-and organization comparison. These phrase rules do not understand all negation,
-quoted examples, third-party services, or context: they are warning signs, not
-proof of fraud. No match is not proof of safety.
+Provider evidence contributes:
 
-`services/analysis.py` connects extraction, provider lookup, and scoring. The
-response preserves `indicators` and `threat_intelligence` and adds `assessment`:
+| Evidence | Points |
+| --- | --- |
+| VirusTotal malicious verdict or URLhaus malware listing | +35, once even when both match |
+| At least three malicious VirusTotal verdicts | +20 |
+| Google Safe Browsing threat match | +20 |
 
-- `risk_score`: evidence points from 0 to 100, not a probability.
-- `risk_level`: LOW (0–24), SUSPICIOUS (25–49), HIGH (50–74), CRITICAL (75–100).
-- `assessment_status`: unavailable, partial, or complete.
-- `assessed_url` and `scope`: only the first extracted URL is assessed.
-- `indicators`: scoring explanations, separate from top-level extracted indicators.
-- `evidence`, `missing_evidence`, `score_breakdown`, and `assessment_note`:
-  details of what was checked and what remains unknown.
+Each rule contributes at most once; the additive score is capped at 100. Ordinary
+bands are LOW (0-24), SUSPICIOUS (25-49), HIGH (50-74), and CRITICAL (75-100).
+**Any explicit VirusTotal, URLhaus, or Google Safe Browsing threat match sets a
+minimum HIGH level.** The numeric score and breakdown remain additive; when this
+changes the ordinary band, `risk_level_reason` and `assessment_note` explain why.
+A Google-only match therefore displays **20/100, HIGH**, with its reason.
 
-VirusTotal or a URLhaus malware listing contributes 35 points, counted only once
-when both match. At least three malicious VirusTotal verdicts add 20 more points.
-The other scoring rules are prepared but
-their providers are not connected, so live assessments are currently partial
-or unavailable. Missing checks remain `null`; client-supplied evidence is not
-used. A zero score does not establish safety. The frontend hides the numeric
-score and LOW label when the assessment is unavailable, and displays the scope
-and missing evidence for partial results. Other URLs are explicitly skipped.
+`assessment_status` is `unavailable`, `partial`, or `complete`. The frontend
+displays unknown risk instead of a LOW/zero verdict when no assessment is
+available. Missing checks add no points and remain `null` in `evidence`.
+Domain age, suspicious-IP reputation, and malicious-relationship evidence have
+no connected providers yet, so current live assessments remain partial or
+unavailable. IPinfo does not populate suspicious-IP reputation. Client-supplied
+evidence is ignored by `/analyze`; a zero score or checked negative does not
+establish safety.
 
-## Optional local checks
+## Local checks
 
-From `backend/`:
+From `backend/` in PowerShell:
 
 ```powershell
 .\.venv\Scripts\python.exe -m ruff check .
@@ -236,6 +195,8 @@ From `backend/`:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-Tests use fake keys and mocked HTTP responses; they do not use your `.env` keys
-or consume provider quota. They cover report parsing, API errors, timeouts,
-caching, concurrent rate limiting, and the `/analyze` response.
+On macOS/Linux, replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`.
+Tests isolate credentials and use mocked HTTP responses. They cover input
+validation, extraction, provider parsing and failures, caching, cooldowns,
+scoring overrides, and explanation fallbacks. Passing these tests does not
+verify live credentials, provider availability, or quota.

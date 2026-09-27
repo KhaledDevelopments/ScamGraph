@@ -39,6 +39,60 @@ def test_providers_do_not_double_count_reputation():
     assert result["risk_score"] == 35
 
 
+@pytest.mark.parametrize(
+    "evidence, score",
+    [
+        ({"virustotal_malicious_count": 1}, 35),
+        ({"urlhaus_malicious": True}, 35),
+        ({"google_safe_browsing_flagged": True}, 20),
+    ],
+)
+def test_explicit_threat_match_has_high_minimum_level(evidence, score):
+    result = calculate_risk(**evidence)
+    assert result["risk_score"] == score
+    assert sum(item["points"] for item in result["score_breakdown"]) == score
+    assert result["risk_level"] == "HIGH"
+    assert result["risk_level_reason"] in result["assessment_note"]
+    assert "threat provider" in result["risk_level_reason"]
+    assert result["assessment_status"] == "partial"
+
+
+def test_negative_checks_do_not_dilute_explicit_threat_match():
+    result = calculate_risk(
+        virustotal_malicious_count=0,
+        urlhaus_malicious=False,
+        google_safe_browsing_flagged=True,
+        domain_age_days=365,
+        suspicious_ip=False,
+        connected_to_malicious_entity=False,
+    )
+    assert result["risk_score"] == 20
+    assert result["risk_level"] == "HIGH"
+    assert result["assessment_status"] == "complete"
+
+
+@pytest.mark.parametrize(
+    "evidence, expected_level",
+    [
+        ({}, "LOW"),
+        ({"google_safe_browsing_flagged": False}, "LOW"),
+        ({"suspicious_ip": True, "domain_age_days": 1}, "LOW"),
+        ({"virustotal_malicious_count": 3}, "HIGH"),
+        (
+            {
+                "virustotal_malicious_count": 3,
+                "google_safe_browsing_flagged": True,
+            },
+            "CRITICAL",
+        ),
+    ],
+)
+def test_levels_without_safety_override_keep_normal_band(evidence, expected_level):
+    result = calculate_risk(**evidence)
+    assert result["risk_level"] == expected_level
+    assert result["risk_level_reason"] is None
+
+
 @pytest.mark.parametrize("age, score", [(0, 10), (29, 10), (30, 0)])
 def test_domain_age_boundary(age, score):
     assert calculate_risk(domain_age_days=age)["risk_score"] == score

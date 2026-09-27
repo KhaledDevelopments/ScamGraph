@@ -5,8 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from services.analysis import analyze_content
 from providers import gemini
+from services.analysis import analyze_content
+
+MAX_CONTENT_LENGTH = 20_000
 
 # Load local keys while keeping existing environment variables authoritative.
 load_dotenv(Path(__file__).with_name(".env"), override=False)
@@ -23,7 +25,7 @@ app.add_middleware(
 
 
 class AnalyzeRequest(BaseModel):
-    content: str = Field(min_length=1, strict=True)
+    content: str = Field(min_length=1, max_length=MAX_CONTENT_LENGTH, strict=True)
 
     @field_validator("content")
     @classmethod
@@ -33,8 +35,7 @@ class AnalyzeRequest(BaseModel):
         return value
 
 
-class ExplainRequest(BaseModel):
-    content: str = Field(min_length=1, strict=True)
+class ExplainRequest(AnalyzeRequest):
     assessment: dict
     indicators: dict
 

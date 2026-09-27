@@ -34,6 +34,9 @@ export default function RiskScore({ assessment }) {
           {risk_score}<span className="text-xl text-muted">/100</span>
         </p>
       </div>
+      {assessment.risk_level_reason && (
+        <p className="text-sm text-risk-high mt-3">{assessment.risk_level_reason}</p>
+      )}
       <p className="text-xs text-muted mt-3">{assessment.scope}</p>
       {assessment.heuristic_findings?.length > 0 && (
         <div className="mt-4 space-y-3">

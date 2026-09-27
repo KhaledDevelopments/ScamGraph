@@ -138,3 +138,16 @@ def test_client_cannot_inject_heuristic_scores():
     assert result["risk_score"] == 0
     assert result["heuristic_findings"] == []
     assert result["assessment_status"] == "unavailable"
+
+
+def test_many_negated_phrases_do_not_hide_later_positive_match():
+    text = "Never act now. " * 6_000 + "Please act now."
+    findings = analyze_heuristics(text, [])
+    assert len(findings) == 1
+    assert findings[0]["type"] == "urgency"
+    assert findings[0]["matched_text"] == "act now"
+
+
+def test_negation_window_does_not_cross_sentence_boundary():
+    findings = analyze_heuristics("Never share secrets. Enter your password.", [])
+    assert [finding["type"] for finding in findings] == ["credential_request"]

@@ -97,3 +97,9 @@ def test_malformed_urls_do_not_prevent_extracting_other_indicators():
 )
 def test_returns_empty_lists_when_no_supported_indicators_are_found(content):
     assert extract_indicators(content) == {"emails": [], "urls": [], "domains": []}
+
+
+def test_large_punctuation_suffix_preserves_balanced_url_brackets():
+    url = "https://example.test/topic_(part)"
+    content = url + ").!?]}" * 20_000
+    assert extract_indicators(content)["urls"] == [url]

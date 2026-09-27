@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MAX_CONTENT_LENGTH } from '../utils/analysisSession';
 
 const PRESETS = [
   {
@@ -25,6 +26,8 @@ const PRESETS = [
 
 export default function InputPanel({ onAnalyze, onReset, loading, hasResult }) {
   const [text, setText] = useState('');
+  const characterCount = Array.from(text).length;
+  const tooLong = characterCount > MAX_CONTENT_LENGTH;
 
   const handlePreset = (presetText) => {
     setText(presetText);
@@ -39,7 +42,7 @@ export default function InputPanel({ onAnalyze, onReset, loading, hasResult }) {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (text.trim() && !loading) {
+      if (text.trim() && !loading && !tooLong) {
         onAnalyze(text);
       }
     }
@@ -61,20 +64,30 @@ export default function InputPanel({ onAnalyze, onReset, loading, hasResult }) {
         ))}
       </div>
 
+      <label htmlFor="message-content" className="block text-sm font-medium">Message or link to analyze</label>
       <div className="border border-border rounded-xl bg-surface p-1 focus-within:border-accent transition-colors">
         <textarea
+          id="message-content"
           className="w-full h-36 bg-transparent p-4 text-white placeholder-muted resize-none focus:outline-none"
           placeholder="Paste an email, text message, or link..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            onReset?.();
+          }}
           onKeyDown={handleKeyDown}
+          aria-describedby="message-length"
+          aria-invalid={tooLong}
         />
+        <p id="message-length" className={`px-4 text-xs ${tooLong ? 'text-risk-high' : 'text-muted'}`}>
+          {characterCount.toLocaleString('en-US')} / {MAX_CONTENT_LENGTH.toLocaleString('en-US')} characters
+          {tooLong && ' — shorten the message before analyzing.'}
+        </p>
         <div className="flex items-center justify-between p-2">
           {(text || hasResult) ? (
             <button
               type="button"
               onClick={handleClear}
-              disabled={loading}
               className="text-xs text-muted hover:text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition-colors"
             >
               ✕ Clear / Reset
@@ -85,7 +98,7 @@ export default function InputPanel({ onAnalyze, onReset, loading, hasResult }) {
           <button
             className="bg-accent hover:bg-sky-400 text-base font-medium px-6 py-2.5 rounded-lg transition-colors disabled:opacity-40"
             onClick={() => onAnalyze(text)}
-            disabled={!text.trim() || loading}
+            disabled={!text.trim() || loading || tooLong}
           >
             {loading ? 'Analyzing...' : 'Analyze'}
           </button>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import ReactFlow, { Background, Controls, useNodesState, useEdgesState } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { formatStatus } from '../utils/statusLabels';
@@ -192,6 +192,10 @@ export default function ScamGraph({ data, onNodeClick }) {
 function GraphCanvas({ initialNodes, initialEdges, onNodeClick }) {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const handleSelectionChange = useCallback(({ nodes: selectedNodes }) => {
+    const node = selectedNodes[0];
+    onNodeClick(node ? { ...node, data: { ...node.data, label: node.data.fullLabel } } : null);
+  }, [onNodeClick]);
 
   return (
     <div style={{ height: '460px', width: '100%' }} className="border border-border rounded-xl overflow-hidden">
@@ -200,8 +204,7 @@ function GraphCanvas({ initialNodes, initialEdges, onNodeClick }) {
         edges={edges} 
         onNodesChange={onNodesChange} 
         onEdgesChange={onEdgesChange}
-        onNodeClick={(e, node) => 
-        onNodeClick({ ...node, data: { ...node.data, label: node.data.fullLabel } })}
+        onSelectionChange={handleSelectionChange}
         nodesConnectable={false} 
         nodesDraggable={false}
         minZoom={0.05} 

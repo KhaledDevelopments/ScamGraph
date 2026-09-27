@@ -29,8 +29,12 @@ NEGATION = re.compile(r"\b(?:never|do not|don't|don’t|not to)\b", re.IGNORECAS
 def _positive_match(pattern: re.Pattern, text: str) -> re.Match | None:
     for match in pattern.finditer(text):
         # Avoid common safety advice such as "never share your password".
-        prefix = re.split(r"[.!?\n]", text[: match.start()])[-1]
-        if not NEGATION.search(prefix[-60:]):
+        # Only the last 60 characters can affect this check. Keep scanning
+        # bounded even when a long message contains many negated matches.
+        prefix = re.split(r"[.!?\n]", text[max(0, match.start() - 60) : match.start()])[
+            -1
+        ]
+        if not NEGATION.search(prefix):
             return match
     return None
 

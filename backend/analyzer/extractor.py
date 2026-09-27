@@ -21,15 +21,23 @@ INDICATOR_PATTERN = re.compile(
 def _trim_url_punctuation(url: str) -> str:
     """Remove surrounding prose punctuation, preserving balanced URL brackets."""
     bracket_pairs = {")": "(", "]": "[", "}": "{"}
-    while url:
-        unmatched_bracket = url[-1] in bracket_pairs and url.count(url[-1]) > url.count(
-            bracket_pairs[url[-1]]
-        )
-        if url[-1] in ".,;:!?" or unmatched_bracket:
-            url = url[:-1]
+    # Count each bracket once, then move an index instead of repeatedly copying
+    # and rescanning the full URL for every trailing character.
+    excess = {
+        closing: url.count(closing) - url.count(opening)
+        for closing, opening in bracket_pairs.items()
+    }
+    end = len(url)
+    while end:
+        last = url[end - 1]
+        if last in ".,;:!?":
+            end -= 1
+        elif excess.get(last, 0) > 0:
+            excess[last] -= 1
+            end -= 1
         else:
             break
-    return url
+    return url[:end]
 
 
 def extract_indicators(content: str) -> dict[str, list[str]]:

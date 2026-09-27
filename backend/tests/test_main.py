@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from main import app
+from main import MAX_CONTENT_LENGTH, app
 
 client = TestClient(app)
 
@@ -106,3 +106,43 @@ def test_unlisted_origin_does_not_receive_cors_permission():
 
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+
+
+@pytest.mark.parametrize("endpoint", ["/analyze", "/explain"])
+@pytest.mark.parametrize("content", [" " * 10, "a" * (MAX_CONTENT_LENGTH + 1)])
+def test_endpoints_reject_blank_or_oversized_content_before_processing(
+    endpoint, content, monkeypatch
+):
+    def unexpected_processing(*args):
+        raise AssertionError("Invalid content must not be processed")
+
+    monkeypatch.setattr("main.analyze_content", unexpected_processing)
+    monkeypatch.setattr("main.gemini.explain", unexpected_processing)
+    response = client.post(
+        endpoint, json={"content": content, "assessment": {}, "indicators": {}}
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "content"]
+
+
+def test_analyze_accepts_content_at_limit():
+    content = "word " * (MAX_CONTENT_LENGTH // 5)
+    response = client.post("/analyze", json={"content": content})
+    assert response.status_code == 200
+    assert response.json()["content"] == content
+
+
+def test_explain_preserves_unavailable_assessment_without_provider_keys():
+    analysis = client.post(
+        "/analyze", json={"content": "Read https://unknown-example.invalid/login"}
+    ).json()
+    assert analysis["assessment"]["assessment_status"] == "unavailable"
+    response = client.post(
+        "/explain",
+        json={key: analysis[key] for key in ("content", "assessment", "indicators")},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["source"] == "fallback"
+    assert "legitimate" not in result["explanation"].lower()
+    assert "unknown" in result["explanation"].lower()
