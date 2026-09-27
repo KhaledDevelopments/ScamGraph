@@ -66,6 +66,28 @@ export default function EvidencePanel({ node }) {
     );
   }
 
+  if (type === 'google_safe_browsing') {
+    if (!report) return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">No Google Safe Browsing data.</p></div>;
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6">
+        <p className="font-mono text-sm mb-2">Google Safe Browsing — {report.indicator}</p>
+        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{report.status}</span></p>
+        {report.status === 'ok' && (
+          <ul className="text-sm space-y-1">
+            <li>Flagged: <span className="text-risk-high">Yes</span></li>
+            {report.threat_types?.length > 0 && <li>Threat types: <span className="text-white">{report.threat_types.join(', ')}</span></li>}
+          </ul>
+        )}
+        {report.status === 'not_found' && (
+          <p className="text-sm text-risk-low">Checked — no known threats found on Google's current threat lists.</p>
+        )}
+        {report.status !== 'ok' && report.status !== 'not_found' && (
+          <p className="text-sm text-muted italic">A non-"ok" status means no usable check was completed — it does not mean the URL is safe.</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="border border-border rounded-xl bg-surface p-6">
       <p className="font-mono text-sm">{label}</p>

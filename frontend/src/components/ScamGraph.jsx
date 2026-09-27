@@ -27,52 +27,62 @@ function buildGraph(data) {
   const { urls = [], emails = [], domains = [] } = data.indicators || {};
   const reports = data.threat_intelligence?.virustotal || [];
   const urlhausReports = data.threat_intelligence?.urlhaus || [];
+  const gsbReports = data.threat_intelligence?.google_safe_browsing || [];
   const assessedUrl = data.assessment?.assessed_url;
-  // Reserve two columns per URL for its sibling provider nodes. Other
-  // indicators stay on the same level as URLs, outside those branches.
+
   const urlColumnCounts = urls.map((url) => {
     const hasVt = reports.some((r) => r.indicator === url);
     const hasUh = urlhausReports.some((r) => r.indicator === url);
-    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0));
+    const hasGsb = gsbReports.some((r) => r.indicator === url);
+    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0) + (hasGsb ? 1 : 0));
   });
   const totalUrlColumns = urlColumnCounts.reduce((sum, c) => sum + c, 0);
   const columnCount = Math.max(1, totalUrlColumns + emails.length + domains.length);
   const centerX = (columnCount * COLUMN_WIDTH - NODE_WIDTH) / 2;
   nodes.push({ id: 'message', position: { x: centerX, y: 0 }, data: { type: 'message', label: 'MESSAGE' }, style: baseStyle });
 
+  let urlBranchStart = 0;
   urls.forEach((url, i) => {
     const id = `url-${i}`;
     const report = reports.find((r) => r.indicator === url);
     const urlhausReport = urlhausReports.find((r) => r.indicator === url);
+    const gsbReport = gsbReports.find((r) => r.indicator === url);
     const isAssessed = url === assessedUrl;
+
     const vtMalicious = report?.status === 'ok' && report.stats?.malicious > 0;
     const uhMalicious = urlhausReport?.malicious === true;
-    const malicious = vtMalicious || uhMalicious;
-    const branchX = i * COLUMN_WIDTH * 2;
-    nodes.push({ id, position: { x: branchX + COLUMN_WIDTH / 2, y: 160 }, data: { type: 'url', label: url, url, report, isAssessed }, style: malicious ? flaggedStyle : baseStyle });
+    const gsbMalicious = gsbReport?.flagged === true;
+    const malicious = vtMalicious || uhMalicious || gsbMalicious;
+
+    const branchColumns = urlColumnCounts[i];
+    const branchX = urlBranchStart * COLUMN_WIDTH;
+    const branchCenterX = branchX + (branchColumns * COLUMN_WIDTH - NODE_WIDTH) / 2;
+
+    nodes.push({ id, position: { x: branchCenterX, y: 160 }, data: { type: 'url', label: url, url, report, isAssessed }, style: malicious ? flaggedStyle : baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
 
-    if (report) {
-      const vtId = `vt-${i}`;
-      nodes.push({ id: vtId, position: { x: urlhausReport ? branchX : branchX + COLUMN_WIDTH / 2, y: 320 }, data: { type: 'virustotal', label: `VirusTotal: ${report.status}`, report }, style: vtMalicious ? flaggedStyle : baseStyle });
-      edges.push({ id: `e-${id}-${vtId}`, source: id, target: vtId });
-    }
-    if (urlhausReport) {
-      const uhId = `urlhaus-${i}`;
-      nodes.push({ id: uhId, position: { x: report ? branchX + COLUMN_WIDTH : branchX + COLUMN_WIDTH / 2, y: 320 }, data: { type: 'urlhaus', label: `URLhaus: ${urlhausReport.status}`, report: urlhausReport }, style: uhMalicious ? flaggedStyle : baseStyle });
-      edges.push({ id: `e-${id}-${uhId}`, source: id, target: uhId });
-    }
+    const providerNodes = [];
+    if (report) providerNodes.push({ id: `vt-${i}`, label: `VirusTotal: ${report.status}`, type: 'virustotal', report, malicious: vtMalicious });
+    if (urlhausReport) providerNodes.push({ id: `urlhaus-${i}`, label: `URLhaus: ${urlhausReport.status}`, type: 'urlhaus', report: urlhausReport, malicious: uhMalicious });
+    if (gsbReport) providerNodes.push({ id: `gsb-${i}`, label: `Safe Browsing: ${gsbReport.status}`, type: 'google_safe_browsing', report: gsbReport, malicious: gsbMalicious });
+
+    providerNodes.forEach((p, j) => {
+      nodes.push({ id: p.id, position: { x: branchX + j * COLUMN_WIDTH, y: 320 }, data: { type: p.type, label: p.label, report: p.report }, style: p.malicious ? flaggedStyle : baseStyle });
+      edges.push({ id: `e-${id}-${p.id}`, source: id, target: p.id });
+    });
+
+    urlBranchStart += branchColumns;
   });
 
   emails.forEach((email, i) => {
     const id = `email-${i}`;
-    nodes.push({ id, position: { x: (urls.length * 2 + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'email', label: email }, style: baseStyle });
+    nodes.push({ id, position: { x: (urlBranchStart + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'email', label: email }, style: baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
   });
 
   domains.forEach((domain, i) => {
     const id = `domain-${i}`;
-    nodes.push({ id, position: { x: (urls.length * 2 + emails.length + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'domain', label: domain }, style: baseStyle });
+    nodes.push({ id, position: { x: (urlBranchStart + emails.length + i) * COLUMN_WIDTH, y: 160 }, data: { type: 'domain', label: domain }, style: baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
   });
 
@@ -82,7 +92,6 @@ function buildGraph(data) {
       style: { ...baseStyle, ...node.style },
       data: {
         ...node.data,
-        // Truncate the visual label only; the evidence panel keeps the full value.
         label: <span title={node.data.label} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.data.label}</span>,
         fullLabel: node.data.label,
       },
