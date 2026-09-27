@@ -16,6 +16,31 @@ export default function EvidencePanel({ node }) {
     );
   }
 
+  if (type === 'urlhaus') {
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6">
+        <p className="font-mono text-sm break-all mb-2">URLhaus — {report?.indicator}</p>
+        <p className="text-sm text-muted mb-3">Status: {report?.status}</p>
+        {report?.status === 'ok' ? (
+          <div className="text-sm space-y-2">
+            <p className="text-risk-high">Listed for malware distribution.</p>
+            <p>Recorded URL status: {report.url_status}</p>
+            <p>Threat: {report.threat}</p>
+            {report.tags?.length > 0 && <p>Tags: {report.tags.join(', ')}</p>}
+            {report.date_added && <p>Added: {report.date_added}</p>}
+            <p className="text-muted">An offline listing is historical evidence; it does not establish that malware is currently being served.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">
+            {report?.status === 'not_found'
+              ? 'No URLhaus listing found. This does not establish that the URL is safe.'
+              : 'This check did not provide evidence. The URL’s risk remains unknown from URLhaus.'}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   if (type === 'virustotal') {
     if (!report) return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">No VirusTotal data.</p></div>;
     return (

@@ -2,7 +2,7 @@
 
 The backend receives and validates user input, then extracts URLs, email
 addresses, and domains. It retrieves an existing VirusTotal report for the
-first extracted URL and scores the available evidence. Saving messages is not
+first extracted URL, checks URLhaus, and scores the available evidence. Saving messages is not
 implemented yet.
 
 ## Local setup (PowerShell)
@@ -32,7 +32,35 @@ over values in the file. Restart the server after changing your keys.
 
 The VirusTotal service reads `VIRUSTOTAL_API_KEY` from the environment.
 Input extraction works without keys; in that case the provider result is
-`not_configured`. The other provider integrations are not implemented yet.
+`not_configured`. URLhaus is configured separately below; the remaining provider
+integrations are not implemented yet.
+
+## URLhaus setup
+
+Obtain an Auth-Key from https://auth.abuse.ch/ and add it to `backend/.env`:
+
+```dotenv
+URLHAUS_AUTH_KEY=your_key_here
+```
+
+Restart the backend after changing this file. The key stays on the backend.
+`providers/urlhaus.py` queries the existing record for the first extracted URL
+using the [URLhaus lookup API](https://urlhaus-api.abuse.ch/#urlinfo).
+It sends only that URL, does not submit it for scanning, and does not visit it
+or download payloads. Additional URLs have status `skipped`.
+
+Results appear in `threat_intelligence.urlhaus` and in the frontend graph.
+Click a URLhaus node to see its status, tags, and recorded online/offline state.
+A valid malware listing sets `malicious: true`, including offline historical
+listings. `no_results` becomes `not_found` with `malicious: false`: this means
+not listed, not safe. Missing keys, failures, and skipped checks leave
+`malicious: null`. Statuses include `ok`, `not_found`, `not_configured`,
+`unavailable`, `rate_limited`, and `skipped`.
+
+Requests time out after five seconds without retries or redirects. Matches and
+misses are cached for 15 minutes (128 entries); HTTP 429 triggers a 60-second
+cooldown. State is local to one backend process. URLhaus tracks malware
+distribution, so absence of a record does not rule out phishing or other scams.
 
 ## Receive a message
 
@@ -143,8 +171,9 @@ response preserves `indicators` and `threat_intelligence` and adds `assessment`:
 - `evidence`, `missing_evidence`, `score_breakdown`, and `assessment_note`:
   details of what was checked and what remains unknown.
 
-VirusTotal contributes 35 points for at least one malicious verdict and 20 more
-for at least three malicious verdicts. The other scoring rules are prepared but
+VirusTotal or a URLhaus malware listing contributes 35 points, counted only once
+when both match. At least three malicious VirusTotal verdicts add 20 more points.
+The other scoring rules are prepared but
 their providers are not connected, so live assessments are currently partial
 or unavailable. Missing checks remain `null`; client-supplied evidence is not
 used. A zero score does not establish safety. The frontend hides the numeric
