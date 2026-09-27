@@ -7,9 +7,17 @@ const COLUMN_WIDTH = 230;
 const baseStyle = {
   background: '#141B2D', color: '#fff', border: '1px solid #253147',
   fontFamily: 'monospace', fontSize: '12px', width: NODE_WIDTH, height: 64,
-  padding: '20px 12px', whiteSpace: 'nowrap',
+  padding: '20px 12px', whiteSpace: 'nowrap', wordBreak: 'break-word', textAlign: 'center', lineHeight: '1.4',
 };
-const flaggedStyle = { background: '#3B1418', color: '#fff', border: '1px solid #E5484D', fontFamily: 'monospace', fontSize: '12px' };
+
+const flaggedStyle = { 
+  ...baseStyle,
+  background: '#3B1418', 
+  color: '#fff', 
+  border: '1px solid #E5484D', 
+  fontFamily: 'monospace', 
+  fontSize: '12px' 
+};
 
 function buildGraph(data) {
   const nodes = [];
