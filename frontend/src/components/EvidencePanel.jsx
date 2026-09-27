@@ -1,3 +1,5 @@
+import { formatStatus } from '../utils/statusLabels';
+
 export default function EvidencePanel({ node }) {
   const { type, label, report, isAssessed } = node.data;
 
@@ -43,7 +45,7 @@ export default function EvidencePanel({ node }) {
     return (
       <div className="border border-border rounded-xl bg-surface p-6">
         <p className="font-mono text-sm mb-2">VirusTotal — {report.indicator}</p>
-        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{report.status}</span></p>
+        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{formatStatus(report.status)}</span></p>
         {report.status === 'ok' && report.stats && (
           <ul className="text-sm space-y-1">
             <li>Malicious: <span className="text-risk-high">{report.stats.malicious}</span></li>
@@ -64,7 +66,7 @@ export default function EvidencePanel({ node }) {
     return (
       <div className="border border-border rounded-xl bg-surface p-6">
         <p className="font-mono text-sm mb-2">URLhaus — {report.indicator}</p>
-        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{report.status}</span></p>
+        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{formatStatus(report.status)}</span></p>
         {report.status === 'ok' && (
           <ul className="text-sm space-y-1">
             <li>Listed as malicious: <span className="text-risk-high">Yes</span></li>
@@ -89,7 +91,7 @@ export default function EvidencePanel({ node }) {
     return (
       <div className="border border-border rounded-xl bg-surface p-6">
         <p className="font-mono text-sm mb-2">Google Safe Browsing — {report.indicator}</p>
-        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{report.status}</span></p>
+        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{formatStatus(report.status)}</span></p>
         {report.status === 'ok' && (
           <ul className="text-sm space-y-1">
             <li>Flagged: <span className="text-risk-high">Yes</span></li>

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import ReactFlow, { Background, Controls, useNodesState, useEdgesState } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { formatStatus } from '../utils/statusLabels';
 
 const NODE_WIDTH = 220;
 
@@ -89,10 +90,10 @@ function buildGraph(data) {
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
 
     const providerNodes = [];
-    if (report) providerNodes.push({ id: `vt-${i}`, label: `VirusTotal: ${report.status}`, type: 'virustotal', report, malicious: vtMalicious });
-    if (urlhausReport) providerNodes.push({ id: `urlhaus-${i}`, label: `URLhaus: ${urlhausReport.status}`, type: 'urlhaus', report: urlhausReport, malicious: uhMalicious });
-    if (gsbReport) providerNodes.push({ id: `gsb-${i}`, label: `Safe Browsing: ${gsbReport.status}`, type: 'google_safe_browsing', report: gsbReport, malicious: gsbMalicious });
-    if (ipReport) providerNodes.push({ id: `ipinfo-${i}`, label: `IPinfo: ${ipReport.ip || ipReport.status}`, type: 'ipinfo', report: ipReport, malicious: false });
+    if (report) providerNodes.push({ id: `vt-${i}`, label: `VirusTotal: ${formatStatus(report.status)}`, type: 'virustotal', report, malicious: vtMalicious });
+    if (urlhausReport) providerNodes.push({ id: `urlhaus-${i}`, label: `URLhaus: ${formatStatus(urlhausReport.status)}`, type: 'urlhaus', report: urlhausReport, malicious: uhMalicious });
+    if (gsbReport) providerNodes.push({ id: `gsb-${i}`, label: `Safe Browsing: ${formatStatus(gsbReport.status)}`, type: 'google_safe_browsing', report: gsbReport, malicious: gsbMalicious });
+    if (ipReport) providerNodes.push({ id: `ipinfo-${i}`, label: `IPinfo: ${ipReport.ip || STATUS_LABELS[ipReport.status] || ipReport.status}`, type: 'ipinfo', report: ipReport, malicious: false });
 
     providerNodes.forEach((p, j) => {
       nodes.push({ id: p.id, position: { x: branchX + j * COLUMN_WIDTH, y: 320 }, data: { type: p.type, label: p.label, report: p.report }, style: p.malicious ? flaggedStyle : baseStyle });
