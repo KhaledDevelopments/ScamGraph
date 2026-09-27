@@ -158,6 +158,34 @@ after the local cooldown expires.
 References: [URL reports](https://docs.virustotal.com/reference/url-info),
 [API limits](https://docs.virustotal.com/reference/public-vs-premium-api).
 
+## IPinfo network context
+
+Add your IPinfo Lite token to `backend/.env`, then restart the backend:
+
+```dotenv
+IPINFO_TOKEN=your_token_here
+```
+
+The [IPinfo Lite API](https://ipinfo.io/developers/lite-api) supplies country,
+ASN, network owner, and network domain for one public IP of the first URL.
+`threat_intelligence.ipinfo` contains the result; click its graph node for details.
+For a domain, the provider sends only the hostname to Cloudflare's public
+[DNS-over-HTTPS resolver](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/dns-json/),
+tries A records then AAAA, and sends only the chosen IP to IPinfo. Literal public
+IPs skip DNS. It never visits the submitted URL. Private/local IPs are not sent
+to IPinfo. No DNS or IPinfo requests are made without a token.
+
+Statuses are `ok`, `not_configured`, `non_public`, `unresolved`, `unavailable`,
+`rate_limited`, and `skipped`. Requests have five-second timeouts, no retries,
+and no redirects; a domain lookup can require two DNS requests plus one IPinfo
+request. Successful enrichment snapshots are cached for 15 minutes (128 entries,
+one backend process); HTTP 429 from IPinfo starts a 60-second cooldown.
+
+IPinfo Lite is context, not IP reputation: it adds no risk points and does not
+fill `suspicious_ip`. A network may be a CDN/shared host, and the selected address
+is not an exhaustive view of the domain's infrastructure. Test by analyzing
+`https://8.8.8.8` (direct IP) or `https://example.com` (DNS plus enrichment).
+
 ## Risk assessment
 
 Local checks in `analyzer/heuristics.py` run without API keys. They examine English

@@ -28,17 +28,19 @@ function buildGraph(data) {
   const reports = data.threat_intelligence?.virustotal || [];
   const urlhausReports = data.threat_intelligence?.urlhaus || [];
   const gsbReports = data.threat_intelligence?.google_safe_browsing || [];
+  const ipReports = data.threat_intelligence?.ipinfo || [];
   const assessedUrl = data.assessment?.assessed_url;
 
   const urlColumnCounts = urls.map((url) => {
     const hasVt = reports.some((r) => r.indicator === url);
     const hasUh = urlhausReports.some((r) => r.indicator === url);
     const hasGsb = gsbReports.some((r) => r.indicator === url);
-    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0) + (hasGsb ? 1 : 0));
+    const hasIp = ipReports.some((r) => r.indicator === url);
+    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0) + (hasGsb ? 1 : 0) + (hasIp ? 1 : 0));
   });
   const totalUrlColumns = urlColumnCounts.reduce((sum, c) => sum + c, 0);
   const columnCount = Math.max(1, totalUrlColumns + emails.length + domains.length);
-  const centerX = (columnCount * COLUMN_WIDTH - NODE_WIDTH) / 2;
+  const centerX = (columnCount - 1) * COLUMN_WIDTH / 2;
   nodes.push({ id: 'message', position: { x: centerX, y: 0 }, data: { type: 'message', label: 'MESSAGE' }, style: baseStyle });
 
   let urlBranchStart = 0;
@@ -47,6 +49,7 @@ function buildGraph(data) {
     const report = reports.find((r) => r.indicator === url);
     const urlhausReport = urlhausReports.find((r) => r.indicator === url);
     const gsbReport = gsbReports.find((r) => r.indicator === url);
+    const ipReport = ipReports.find((r) => r.indicator === url);
     const isAssessed = url === assessedUrl;
 
     const vtMalicious = report?.status === 'ok' && report.stats?.malicious > 0;
@@ -56,7 +59,7 @@ function buildGraph(data) {
 
     const branchColumns = urlColumnCounts[i];
     const branchX = urlBranchStart * COLUMN_WIDTH;
-    const branchCenterX = branchX + (branchColumns * COLUMN_WIDTH - NODE_WIDTH) / 2;
+    const branchCenterX = branchX + (branchColumns - 1) * COLUMN_WIDTH / 2;
 
     nodes.push({ id, position: { x: branchCenterX, y: 160 }, data: { type: 'url', label: url, url, report, isAssessed }, style: malicious ? flaggedStyle : baseStyle });
     edges.push({ id: `e-msg-${id}`, source: 'message', target: id });
@@ -65,6 +68,7 @@ function buildGraph(data) {
     if (report) providerNodes.push({ id: `vt-${i}`, label: `VirusTotal: ${report.status}`, type: 'virustotal', report, malicious: vtMalicious });
     if (urlhausReport) providerNodes.push({ id: `urlhaus-${i}`, label: `URLhaus: ${urlhausReport.status}`, type: 'urlhaus', report: urlhausReport, malicious: uhMalicious });
     if (gsbReport) providerNodes.push({ id: `gsb-${i}`, label: `Safe Browsing: ${gsbReport.status}`, type: 'google_safe_browsing', report: gsbReport, malicious: gsbMalicious });
+    if (ipReport) providerNodes.push({ id: `ipinfo-${i}`, label: `IPinfo: ${ipReport.ip || ipReport.status}`, type: 'ipinfo', report: ipReport, malicious: false });
 
     providerNodes.forEach((p, j) => {
       nodes.push({ id: p.id, position: { x: branchX + j * COLUMN_WIDTH, y: 320 }, data: { type: p.type, label: p.label, report: p.report }, style: p.malicious ? flaggedStyle : baseStyle });
