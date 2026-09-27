@@ -2,7 +2,11 @@ export default function EvidencePanel({ node }) {
   const { type, label, report, isAssessed } = node.data;
 
   if (type === 'message') {
-    return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">Original submitted content — indicators extracted from it are shown as connected nodes.</p></div>;
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6">
+        <p className="text-muted text-sm">Original submitted content — indicators extracted from it are shown as connected nodes.</p>
+      </div>
+    );
   }
 
   if (type === 'url') {
@@ -12,31 +16,6 @@ export default function EvidencePanel({ node }) {
         {isAssessed
           ? <p className="text-sm text-accent">This is the URL that was checked against threat intelligence.</p>
           : <p className="text-sm text-muted">Skipped — only the first extracted URL is assessed in this version.</p>}
-      </div>
-    );
-  }
-
-  if (type === 'urlhaus') {
-    return (
-      <div className="border border-border rounded-xl bg-surface p-6">
-        <p className="font-mono text-sm break-all mb-2">URLhaus — {report?.indicator}</p>
-        <p className="text-sm text-muted mb-3">Status: {report?.status}</p>
-        {report?.status === 'ok' ? (
-          <div className="text-sm space-y-2">
-            <p className="text-risk-high">Listed for malware distribution.</p>
-            <p>Recorded URL status: {report.url_status}</p>
-            <p>Threat: {report.threat}</p>
-            {report.tags?.length > 0 && <p>Tags: {report.tags.join(', ')}</p>}
-            {report.date_added && <p>Added: {report.date_added}</p>}
-            <p className="text-muted">An offline listing is historical evidence; it does not establish that malware is currently being served.</p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted">
-            {report?.status === 'not_found'
-              ? 'No URLhaus listing found. This does not establish that the URL is safe.'
-              : 'This check did not provide evidence. The URL’s risk remains unknown from URLhaus.'}
-          </p>
-        )}
       </div>
     );
   }
@@ -57,17 +36,40 @@ export default function EvidencePanel({ node }) {
         {report.status !== 'ok' && (
           <p className="text-sm text-muted italic">A non-"ok" status means no usable report was retrieved — it does not mean the URL is safe.</p>
         )}
-        {report.last_analysis_date != null && (
-          <p className="text-xs text-muted mt-3">
-            Last analyzed: {new Date(report.last_analysis_date * 1000).toLocaleString(undefined, {
-              year: 'numeric', month: 'short', day: 'numeric',
-              hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
-            })}
-          </p>
-        )}
+        {report.last_analysis_date && <p className="text-xs text-muted mt-3">Last analyzed: {report.last_analysis_date}</p>}
       </div>
     );
   }
 
-  return <div className="border border-border rounded-xl bg-surface p-6"><p className="font-mono text-sm">{label}</p><p className="text-muted text-sm mt-2">Extracted indicator — no provider data checked yet.</p></div>;
+  if (type === 'urlhaus') {
+    if (!report) return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">No URLhaus data.</p></div>;
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6">
+        <p className="font-mono text-sm mb-2">URLhaus — {report.indicator}</p>
+        <p className="text-sm text-muted mb-3">Status: <span className="text-white">{report.status}</span></p>
+        {report.status === 'ok' && (
+          <ul className="text-sm space-y-1">
+            <li>Listed as malicious: <span className="text-risk-high">Yes</span></li>
+            {report.threat && <li>Threat type: <span className="text-white">{report.threat}</span></li>}
+            {report.url_status && <li>URL status: <span className="text-white">{report.url_status}</span></li>}
+            {report.tags?.length > 0 && <li>Tags: <span className="text-white">{report.tags.join(', ')}</span></li>}
+          </ul>
+        )}
+        {report.status === 'not_found' && (
+          <p className="text-sm text-muted italic">Not found in URLhaus's database — this does not mean the URL is safe, only that URLhaus has no record of it.</p>
+        )}
+        {report.status !== 'ok' && report.status !== 'not_found' && (
+          <p className="text-sm text-muted italic">A non-"ok" status means no usable report was retrieved — it does not mean the URL is safe.</p>
+        )}
+        {report.date_added && <p className="text-xs text-muted mt-3">Date added: {report.date_added}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-border rounded-xl bg-surface p-6">
+      <p className="font-mono text-sm">{label}</p>
+      <p className="text-muted text-sm mt-2">Extracted indicator — no provider data checked yet.</p>
+    </div>
+  );
 }

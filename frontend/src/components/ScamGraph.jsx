@@ -3,7 +3,9 @@ import ReactFlow, { Background, Controls, useNodesState, useEdgesState } from 'r
 import 'reactflow/dist/style.css';
 
 const NODE_WIDTH = 190;
+
 const COLUMN_WIDTH = 230;
+
 const baseStyle = {
   background: '#141B2D', color: '#fff', border: '1px solid #253147',
   fontFamily: 'monospace', fontSize: '12px', width: NODE_WIDTH, height: 64,
@@ -28,7 +30,13 @@ function buildGraph(data) {
   const assessedUrl = data.assessment?.assessed_url;
   // Reserve two columns per URL for its sibling provider nodes. Other
   // indicators stay on the same level as URLs, outside those branches.
-  const columnCount = Math.max(1, urls.length * 2 + emails.length + domains.length);
+  const urlColumnCounts = urls.map((url) => {
+    const hasVt = reports.some((r) => r.indicator === url);
+    const hasUh = urlhausReports.some((r) => r.indicator === url);
+    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0));
+  });
+  const totalUrlColumns = urlColumnCounts.reduce((sum, c) => sum + c, 0);
+  const columnCount = Math.max(1, totalUrlColumns + emails.length + domains.length);
   const centerX = (columnCount * COLUMN_WIDTH - NODE_WIDTH) / 2;
   nodes.push({ id: 'message', position: { x: centerX, y: 0 }, data: { type: 'message', label: 'MESSAGE' }, style: baseStyle });
 
