@@ -1,4 +1,4 @@
-﻿# ScamGraph backend
+# ScamGraph backend
 
 The FastAPI backend validates message text, extracts indicators, applies local
 language/domain checks, and enriches the first URL through VirusTotal, URLhaus,
@@ -168,6 +168,7 @@ Provider evidence contributes:
 | VirusTotal malicious verdict or URLhaus malware listing | +35, once even when both match |
 | At least three malicious VirusTotal verdicts | +20 |
 | Google Safe Browsing threat match | +20 |
+| Domain registered less than 30 days ago (RDAP) | +10 |
 
 Each rule contributes at most once; the additive score is capped at 100. Ordinary
 bands are LOW (0-24), SUSPICIOUS (25-49), HIGH (50-74), and CRITICAL (75-100).
@@ -179,11 +180,11 @@ A Google-only match therefore displays **20/100, HIGH**, with its reason.
 `assessment_status` is `unavailable`, `partial`, or `complete`. The frontend
 displays unknown risk instead of a LOW/zero verdict when no assessment is
 available. Missing checks add no points and remain `null` in `evidence`.
-Domain age, suspicious-IP reputation, and malicious-relationship evidence have
-no connected providers yet, so current live assessments remain partial or
-unavailable. IPinfo does not populate suspicious-IP reputation. Client-supplied
-evidence is ignored by `/analyze`; a zero score or checked negative does not
-establish safety.
+RDAP provides authoritative domain registration dates via ICANN bootstrap without
+requiring API keys. Suspicious-IP reputation and cross-message relationship evidence
+have no connected feeds yet. IPinfo does not populate suspicious-IP reputation.
+Client-supplied evidence is ignored by `/analyze`; a zero score or checked negative
+does not establish safety.
 
 ## Local checks
 

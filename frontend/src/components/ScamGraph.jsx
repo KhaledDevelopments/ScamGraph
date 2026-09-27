@@ -16,6 +16,7 @@ const TYPE_BADGES = {
   urlhaus: { label: 'URLHAUS', color: '#94A3B8' },
   google_safe_browsing: { label: 'SAFE BROWSING', color: '#94A3B8' },
   ipinfo: { label: 'IPINFO', color: '#94A3B8' },
+  rdap: { label: 'RDAP', color: '#94A3B8' },
 };
 
 const baseStyle = {
@@ -54,6 +55,7 @@ function buildGraph(data) {
   const urlhausReports = data.threat_intelligence?.urlhaus || [];
   const gsbReports = data.threat_intelligence?.google_safe_browsing || [];
   const ipReports = data.threat_intelligence?.ipinfo || [];
+  const rdapReports = data.threat_intelligence?.rdap || [];
   const assessedUrl = data.assessment?.assessed_url;
 
   const urlColumnCounts = urls.map((url) => {
@@ -61,7 +63,8 @@ function buildGraph(data) {
     const hasUh = urlhausReports.some((r) => r.indicator === url);
     const hasGsb = gsbReports.some((r) => r.indicator === url);
     const hasIp = ipReports.some((r) => r.indicator === url);
-    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0) + (hasGsb ? 1 : 0) + (hasIp ? 1 : 0));
+    const hasRdap = rdapReports.some((r) => r.indicator === url);
+    return Math.max(1, (hasVt ? 1 : 0) + (hasUh ? 1 : 0) + (hasGsb ? 1 : 0) + (hasIp ? 1 : 0) + (hasRdap ? 1 : 0));
   });
   const totalUrlColumns = urlColumnCounts.reduce((sum, c) => sum + c, 0);
   const columnCount = Math.max(1, totalUrlColumns + emails.length + domains.length);
@@ -75,12 +78,14 @@ function buildGraph(data) {
     const urlhausReport = urlhausReports.find((r) => r.indicator === url);
     const gsbReport = gsbReports.find((r) => r.indicator === url);
     const ipReport = ipReports.find((r) => r.indicator === url);
+    const rdapReport = rdapReports.find((r) => r.indicator === url);
     const isAssessed = url === assessedUrl;
 
     const vtMalicious = report?.status === 'ok' && report.stats?.malicious > 0;
     const uhMalicious = urlhausReport?.malicious === true;
     const gsbMalicious = gsbReport?.flagged === true;
-    const malicious = vtMalicious || uhMalicious || gsbMalicious;
+    const rdapRecent = rdapReport?.recent_domain === true;
+    const malicious = vtMalicious || uhMalicious || gsbMalicious || rdapRecent;
 
     const branchColumns = urlColumnCounts[i];
     const branchX = urlBranchStart * COLUMN_WIDTH;
@@ -94,6 +99,10 @@ function buildGraph(data) {
     if (urlhausReport) providerNodes.push({ id: `urlhaus-${i}`, label: `URLhaus: ${formatStatus(urlhausReport.status)}`, type: 'urlhaus', report: urlhausReport, malicious: uhMalicious });
     if (gsbReport) providerNodes.push({ id: `gsb-${i}`, label: `Safe Browsing: ${formatStatus(gsbReport.status)}`, type: 'google_safe_browsing', report: gsbReport, malicious: gsbMalicious });
     if (ipReport) providerNodes.push({ id: `ipinfo-${i}`, label: `IPinfo: ${ipReport.ip || formatStatus(ipReport.status)}`, type: 'ipinfo', report: ipReport, malicious: false });
+    if (rdapReport) {
+      const ageLabel = rdapReport.domain_age_days !== null ? `${rdapReport.domain_age_days}d age` : formatStatus(rdapReport.status);
+      providerNodes.push({ id: `rdap-${i}`, label: `RDAP: ${ageLabel}`, type: 'rdap', report: rdapReport, malicious: rdapRecent });
+    }
 
     providerNodes.forEach((p, j) => {
       nodes.push({ id: p.id, position: { x: branchX + j * COLUMN_WIDTH, y: 320 }, data: { type: p.type, label: p.label, report: p.report }, style: p.malicious ? flaggedStyle : baseStyle });

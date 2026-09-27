@@ -43,8 +43,9 @@ export function generateThreatReport(result, explanation) {
   const uh = threat_intelligence?.urlhaus?.[0];
   const gsb = threat_intelligence?.google_safe_browsing?.[0];
   const ip = threat_intelligence?.ipinfo?.[0];
+  const rdap = threat_intelligence?.rdap?.[0];
 
-  if (vt || uh || gsb || ip) {
+  if (vt || uh || gsb || ip || rdap) {
     lines.push(`## External Threat Intelligence (First URL)`);
     if (vt) {
       const stats = vt.stats ? `${vt.stats.malicious} malicious, ${vt.stats.suspicious} suspicious` : 'N/A';
@@ -60,6 +61,10 @@ export function generateThreatReport(result, explanation) {
     if (ip) {
       const details = ip.status === 'ok' ? `${ip.ip} (${ip.country || 'Unknown'}, ${ip.as_name || 'N/A'})` : ip.status;
       lines.push(`- **IPinfo:** ${details}`);
+    }
+    if (rdap) {
+      const age = rdap.domain_age_days !== null ? `${rdap.domain_age_days} days (${rdap.registration_date || 'N/A'})` : 'N/A';
+      lines.push(`- **RDAP Domain Registration:** status=${rdap.status}, domain=${rdap.domain || 'N/A'}, age=${age}`);
     }
     lines.push(``);
   }

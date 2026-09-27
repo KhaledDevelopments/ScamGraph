@@ -9,7 +9,7 @@ Built for Hack Atlantic 2026 with React, React Flow, Tailwind CSS, and FastAPI.
 ## Features
 
 - Local checks for urgency, requests for credentials, and mismatched UNB domains.
-- First-URL lookups with VirusTotal, URLhaus, and Google Safe Browsing.
+- First-URL lookups with VirusTotal, URLhaus, Google Safe Browsing, and public RDAP domain age.
 - IPinfo network context and clickable evidence nodes.
 - Optional Gemini explanations with a clearly labelled local fallback.
 - Visible uncertainty: missing checks and zero scores never establish safety.
@@ -101,8 +101,8 @@ instead of being replaced with fabricated results.
   Standalone domains and defanged links are not supported.
 - Scores are evidence points, not probabilities. Explicit threat matches can
   raise the verdict above the score's usual band, with an explanation.
-- IPinfo is context, not reputation. Domain age, IP reputation, and cross-message
-  relationships are not implemented, so assessments remain partial or unavailable.
+- IPinfo is context, not reputation. Public RDAP queries domain registration age without credentials. IP reputation and cross-message
+  relationships are not connected yet, so assessments remain partial or unavailable.
 - Input is limited to 20,000 characters. No message database is used. Provider
   and successful explanation caches are bounded and held in memory.
 - Reputation providers receive the selected URL; IP enrichment uses DNS and a

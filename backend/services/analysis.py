@@ -4,7 +4,7 @@ from typing import Any
 
 from analyzer.extractor import extract_indicators
 from analyzer.heuristics import analyze_heuristics
-from providers import google_safe_browsing, ipinfo, urlhaus
+from providers import google_safe_browsing, ipinfo, rdap, urlhaus
 from providers.virustotal import lookup_urls
 from services.scoring import calculate_risk
 
@@ -17,16 +17,24 @@ def analyze_content(content: str) -> dict[str, Any]:
     urlhaus_reports = urlhaus.lookup_urls(indicators["urls"])
     gsb_reports = google_safe_browsing.lookup_urls(indicators["urls"])
     ip_reports = ipinfo.lookup_urls(indicators["urls"])
+    rdap_reports = rdap.lookup_urls(indicators["urls"])
     report = reports[0] if reports else None
     malicious_count = (
         report["stats"]["malicious"]
         if report is not None and report["status"] == "ok"
         else None
     )
+    rdap_report = rdap_reports[0] if rdap_reports else None
+    domain_age = (
+        rdap_report["domain_age_days"]
+        if rdap_report is not None and rdap_report["status"] == "ok"
+        else None
+    )
     result = calculate_risk(
         virustotal_malicious_count=malicious_count,
         urlhaus_malicious=urlhaus_reports[0]["malicious"] if urlhaus_reports else None,
         google_safe_browsing_flagged=gsb_reports[0]["flagged"] if gsb_reports else None,
+        domain_age_days=domain_age,
         heuristic_types=tuple(finding["type"] for finding in findings),
     )
     return {
@@ -36,6 +44,7 @@ def analyze_content(content: str) -> dict[str, Any]:
             "urlhaus": urlhaus_reports,
             "google_safe_browsing": gsb_reports,
             "ipinfo": ip_reports,
+            "rdap": rdap_reports,
         },
         "assessment": {
             **result,

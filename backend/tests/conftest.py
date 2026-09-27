@@ -2,20 +2,28 @@ from collections import OrderedDict
 
 import pytest
 
-from providers import gemini, google_safe_browsing, ipinfo, urlhaus, virustotal
+from providers import (
+    gemini,
+    google_safe_browsing,
+    ipinfo,
+    rdap,
+    urlhaus,
+    virustotal,
+)
 
 
 @pytest.fixture(autouse=True)
 def isolate_providers(monkeypatch):
     """Never use developer credentials or send live provider requests in tests."""
     monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
+    monkeypatch.setenv("RDAP_DISABLED", "1")
     monkeypatch.delenv("VIRUSTOTAL_API_KEY", raising=False)
     monkeypatch.delenv("URLHAUS_AUTH_KEY", raising=False)
     monkeypatch.delenv("IPINFO_TOKEN", raising=False)
     monkeypatch.delenv("GOOGLE_SAFE_BROWSING_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setattr(gemini, "_cache", OrderedDict())
-    for provider in (ipinfo, google_safe_browsing):
+    for provider in (ipinfo, google_safe_browsing, rdap):
         monkeypatch.setattr(provider, "_cache", provider.OrderedDict())
         monkeypatch.setattr(provider, "_cooldown_until", 0.0)
 

@@ -26,6 +26,7 @@ def test_analyze_receives_content_without_changing_it():
             "urlhaus": [],
             "google_safe_browsing": [],
             "ipinfo": [],
+            "rdap": [],
         },
     }
 

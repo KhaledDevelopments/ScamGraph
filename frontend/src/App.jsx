@@ -138,7 +138,7 @@ function App() {
             <strong>ScamGraph</strong> · Built for <strong>Hack Atlantic 2026</strong>
           </p>
           <p className="text-[11px] text-muted/80">
-            Correlating Local Warnings, VirusTotal, URLhaus, Google Safe Browsing, IPinfo & Gemini
+            Correlating Local Warnings, VirusTotal, URLhaus, Google Safe Browsing, IPinfo, RDAP & Gemini
           </p>
           <p className="text-[11px] font-mono">
             <a

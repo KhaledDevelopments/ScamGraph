@@ -133,6 +133,44 @@ export default function EvidencePanel({ node, onClose }) {
     );
   }
 
+  if (type === 'rdap') {
+    if (!report) return <div className="border border-border rounded-xl bg-surface p-6"><p className="text-muted text-sm">No RDAP data.</p></div>;
+    return (
+      <div className="border border-border rounded-xl bg-surface p-6 space-y-2 text-sm">
+        {renderHeader('RDAP Registration')}
+        <p className="font-mono text-sm mb-2 break-all text-white/90">RDAP — {report.domain || report.indicator}</p>
+        <p className="text-sm text-muted mb-2">Status: <span className="text-white">{formatStatus(report.status)}</span></p>
+        {report.status === 'ok' && (
+          <div className="space-y-1 text-sm">
+            {report.registration_date && (
+              <p>Registration Date: <span className="font-mono text-white/90">{report.registration_date}</span></p>
+            )}
+            {report.domain_age_days !== null && (
+              <p>
+                Domain Age: <span className="font-mono font-bold text-white/90">{report.domain_age_days} days</span>
+                {report.recent_domain && (
+                  <span className="ml-2 text-xs text-risk-high bg-risk-high/15 border border-risk-high/30 px-2 py-0.5 rounded-full font-sans font-medium">
+                    ⚠️ Young domain (&lt; 30 days old)
+                  </span>
+                )}
+              </p>
+            )}
+            {report.registrar && (
+              <p className="text-muted">Registrar: <span className="text-white/80">{report.registrar}</span></p>
+            )}
+          </div>
+        )}
+        {report.status === 'not_found' && (
+          <p className="text-sm text-muted italic">Domain registration record was not found in ICANN authoritative RDAP registries.</p>
+        )}
+        {report.status !== 'ok' && report.status !== 'not_found' && (
+          <p className="text-sm text-muted italic">RDAP registration record could not be retrieved — this does not mean the URL is safe.</p>
+        )}
+        <p className="text-muted italic text-xs pt-1">RDAP provides authoritative registry creation dates via ICANN bootstrap. Domains registered less than 30 days ago add +10 risk points.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="border border-border rounded-xl bg-surface p-6">
       {renderHeader(type || 'Indicator')}
