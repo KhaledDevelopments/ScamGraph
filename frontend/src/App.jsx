@@ -10,36 +10,6 @@ import { generateThreatReport } from './utils/reportGenerator';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-function FormattedExplanation({ text }) {
-  if (!text) return null;
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
-
-  return (
-    <p className="text-sm text-white/90 leading-relaxed">
-      {parts.map((part, index) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return (
-            <strong key={index} className="font-semibold text-white">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-        if (part.startsWith('`') && part.endsWith('`')) {
-          return (
-            <code
-              key={index}
-              className="bg-slate-800/90 border border-slate-700/80 text-sky-300 font-mono text-xs px-1.5 py-0.5 rounded mx-0.5"
-            >
-              {part.slice(1, -1)}
-            </code>
-          );
-        }
-        return part;
-      })}
-    </p>
-  );
-}
-
 function App() {
   const [state, setState] = useState(INITIAL_ANALYSIS_STATE);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -153,7 +123,7 @@ function App() {
                   {explanation.source === 'fallback' && (
                     <p className="text-xs text-muted mb-2">Evidence summary · AI explanation unavailable</p>
                   )}
-                  <FormattedExplanation text={explanation.explanation} />
+                  <p className="text-sm text-white/90 leading-relaxed">{explanation.explanation}</p>
                 </div>
               )}
               {explanation && explanation.status !== 'ok' && (
