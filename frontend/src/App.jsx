@@ -47,7 +47,7 @@ function App() {
         indicators: result.indicators,
       });
       setExplanation(res.data);
-    } catch {
+    } catch (err) {
       setExplanation({ status: 'unavailable', explanation: null });
     } finally {
       setExplaining(false);
@@ -55,7 +55,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-base text-white font-sans">
+    <div
+      className="bg-base text-white font-sans"
+      style={{ width: '420px', minHeight: '500px', maxHeight: '600px', overflowY: 'auto' }}
+    >
       <div className="max-w-3xl mx-auto px-6 py-16">
         <div className="mb-10">
           <p className="text-accent font-mono text-sm mb-2">threat analysis console</p>

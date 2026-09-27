@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "ScamGraph",
+  "version": "1.0",
+  "description": "Paste a suspicious message or link and see exactly why it's dangerous.",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "permissions": []
+}
