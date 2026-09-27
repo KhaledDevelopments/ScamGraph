@@ -5,6 +5,8 @@ To start the frontend and backend on Windows, install Node.js and uv, then run
 this from the project folder in PowerShell:
 
 ```powershell
+If uv needs download: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start-dev.ps1
 ```
 

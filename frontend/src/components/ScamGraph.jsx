@@ -2,8 +2,30 @@ import { useMemo } from 'react';
 import ReactFlow, { Background, Controls, useNodesState, useEdgesState } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-const baseStyle = { background: '#141B2D', color: '#fff', border: '1px solid #253147', fontFamily: 'monospace', fontSize: '12px' };
-const flaggedStyle = { background: '#3B1418', color: '#fff', border: '1px solid #E5484D', fontFamily: 'monospace', fontSize: '12px' };
+const baseStyle = {  
+  background: '#141B2D', 
+  color: '#fff', 
+  border: '1px solid #253147', 
+  fontFamily: 'monospace', 
+  fontSize: '12px',
+  padding: '10px 14px',
+  borderRadius: '8px',
+  minWidth: '90px',
+  maxWidth: '220px',
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
+  textAlign: 'center',
+  lineHeight: '1.4',
+};
+const flaggedStyle = { 
+  ...baseStyle,
+  background: '#3B1418', 
+  color: '#fff', 
+  border: '1px solid #E5484D', 
+  fontFamily: 'monospace', 
+  fontSize: '12px' 
+
+};
 
 function buildGraph(data) {
   const nodes = [{ id: 'message', position: { x: 300, y: 0 }, data: { type: 'message', label: 'MESSAGE' }, style: baseStyle }];
