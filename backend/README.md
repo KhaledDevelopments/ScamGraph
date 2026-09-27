@@ -160,6 +160,24 @@ References: [URL reports](https://docs.virustotal.com/reference/url-info),
 
 ## Risk assessment
 
+Local checks in `analyzer/heuristics.py` run without API keys. They examine English
+message text for urgency/account threats (+5) and credential/sign-in requests
+(+10). A first organization rule flags an explicit UNB mention when the first
+URL's hostname is outside `unb.ca` and its subdomains (+15). The mapping is based
+on [UNB's official website](https://www.unb.ca/); other organizations are not
+checked yet. URLs and email addresses are excluded from language matching.
+Common negations such as "never share your password" are suppressed.
+
+Each rule adds points at most once per message, with the combined score capped
+at 100. `assessment.heuristic_findings` contains the matched text, explanation,
+severity, and points; the frontend shows these beneath the score. Positive local
+findings can produce a partial assessment even when both providers are unavailable.
+Without provider evidence or local matches, risk remains unknown rather than safe.
+The scope now includes message language plus the first URL's provider evidence
+and organization comparison. These phrase rules do not understand all negation,
+quoted examples, third-party services, or context: they are warning signs, not
+proof of fraud. No match is not proof of safety.
+
 `services/analysis.py` connects extraction, provider lookup, and scoring. The
 response preserves `indicators` and `threat_intelligence` and adds `assessment`:
 

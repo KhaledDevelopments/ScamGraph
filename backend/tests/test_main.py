@@ -14,7 +14,8 @@ def test_analyze_receives_content_without_changing_it():
     assert response.status_code == 200
     data = response.json()
     assessment = data.pop("assessment")
-    assert assessment["assessment_status"] == "unavailable"
+    assert assessment["assessment_status"] == "partial"
+    assert assessment["risk_score"] == 5
     assert assessment["assessed_url"] is None
     assert data == {
         "message": "Content received",
