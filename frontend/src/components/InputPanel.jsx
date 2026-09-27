@@ -1,7 +1,40 @@
 import { useState } from 'react';
 
-export default function InputPanel({ onAnalyze, loading }) {
+const PRESETS = [
+  {
+    id: 'unb-phish',
+    label: '🚨 UNB Phish (Live DNS & IPinfo)',
+    text: `FINAL NOTICE: Your UNB student account has been suspended due to suspicious activity. You must act immediately to confirm your credentials and restore access: https://unb.netlify.app/login\n\nIf you need assistance, contact admin-support@unb-notice.com right away.`,
+  },
+  {
+    id: 'google-safe-browsing',
+    label: '⚠️ Google Safe Browsing & VT Hit',
+    text: `URGENT SECURITY ALERT: Unauthorized sign-in detected on your account. Confirm your credentials immediately to prevent permanent account suspension: http://testsafebrowsing.appspot.com/s/phishing.html`,
+  },
+  {
+    id: 'urlhaus-malware',
+    label: '☣️ URLhaus Malware Listing',
+    text: `Critical security update: Download and apply the system patch immediately from the distribution host: http://123.11.10.172:55820/bin.sh`,
+  },
+  {
+    id: 'legitimate',
+    label: '🟢 Official UNB (Clean Baseline)',
+    text: `Welcome to the semester at UNB! For orientation information, academic dates, and course schedules, visit the official student portal at https://unb.ca/students or email questions@unb.ca.`,
+  },
+];
+
+export default function InputPanel({ onAnalyze, onReset, loading, hasResult }) {
   const [text, setText] = useState('');
+
+  const handlePreset = (presetText) => {
+    setText(presetText);
+    if (onReset) onReset();
+  };
+
+  const handleClear = () => {
+    setText('');
+    if (onReset) onReset();
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -13,22 +46,50 @@ export default function InputPanel({ onAnalyze, loading }) {
   };
 
   return (
-    <div className="border border-border rounded-xl bg-surface p-1 focus-within:border-accent transition-colors">
-      <textarea
-        className="w-full h-36 bg-transparent p-4 text-white placeholder-muted resize-none focus:outline-none"
-        placeholder="Paste an email, text message, or link..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
-      <div className="flex justify-end p-2">
-        <button
-          className="bg-accent hover:bg-sky-400 text-base font-medium px-6 py-2.5 rounded-lg transition-colors disabled:opacity-40"
-          onClick={() => onAnalyze(text)}
-          disabled={!text.trim() || loading}
-        >
-          {loading ? 'Analyzing...' : 'Analyze'}
-        </button>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted font-medium">Sample scenarios:</span>
+        {PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => handlePreset(preset.text)}
+            className="text-xs bg-surface border border-border hover:border-accent text-slate-300 hover:text-white px-2.5 py-1 rounded-md transition-colors"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="border border-border rounded-xl bg-surface p-1 focus-within:border-accent transition-colors">
+        <textarea
+          className="w-full h-36 bg-transparent p-4 text-white placeholder-muted resize-none focus:outline-none"
+          placeholder="Paste an email, text message, or link..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <div className="flex items-center justify-between p-2">
+          {(text || hasResult) ? (
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={loading}
+              className="text-xs text-muted hover:text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition-colors"
+            >
+              ✕ Clear / Reset
+            </button>
+          ) : (
+            <div />
+          )}
+          <button
+            className="bg-accent hover:bg-sky-400 text-base font-medium px-6 py-2.5 rounded-lg transition-colors disabled:opacity-40"
+            onClick={() => onAnalyze(text)}
+            disabled={!text.trim() || loading}
+          >
+            {loading ? 'Analyzing...' : 'Analyze'}
+          </button>
+        </div>
       </div>
     </div>
   );

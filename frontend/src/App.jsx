@@ -54,6 +54,13 @@ function App() {
     }
   };
 
+  const handleReset = () => {
+    setResult(null);
+    setSelectedNode(null);
+    setError(null);
+    setExplanation(null);
+  };
+
   return (
     <div className="min-h-screen bg-base text-white font-sans">
       <div className="max-w-3xl mx-auto px-6 py-16">
@@ -63,7 +70,12 @@ function App() {
           <p className="text-muted mt-2">Paste a suspicious message or link. We'll show you exactly why it's dangerous.</p>
         </div>
 
-        <InputPanel onAnalyze={handleAnalyze} loading={loading} />
+        <InputPanel
+          onAnalyze={handleAnalyze}
+          onReset={handleReset}
+          loading={loading}
+          hasResult={Boolean(result)}
+        />
 
         {loading && <p className="text-muted mt-6">Analyzing...</p>}
         {error && <p className="text-risk-high mt-6">{error}</p>}
