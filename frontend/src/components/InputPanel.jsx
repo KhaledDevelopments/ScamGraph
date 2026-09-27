@@ -3,6 +3,15 @@ import { useState } from 'react';
 export default function InputPanel({ onAnalyze, loading }) {
   const [text, setText] = useState('');
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (text.trim() && !loading) {
+        onAnalyze(text);
+      }
+    }
+  };
+
   return (
     <div className="border border-border rounded-xl bg-surface p-1 focus-within:border-accent transition-colors">
       <textarea
@@ -10,6 +19,7 @@ export default function InputPanel({ onAnalyze, loading }) {
         placeholder="Paste an email, text message, or link..."
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
       />
       <div className="flex justify-end p-2">
         <button
