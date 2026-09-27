@@ -12,12 +12,15 @@ function App() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [explanation, setExplanation] = useState(null);
+  const [explaining, setExplaining] = useState(false);
 
   const handleAnalyze = async (content) => {
     if (loading || !content.trim()) return;
     setLoading(true);
     setError(null);
     setSelectedNode(null);
+    setExplanation(null);
     try {
       const res = await axios.post(`${API_BASE_URL}/analyze`, { content });
       if (!res.data?.assessment) {
@@ -31,6 +34,23 @@ function App() {
       setResult(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExplain = async () => {
+    if (!result) return;
+    setExplaining(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/explain`, {
+        content: result.content,
+        assessment: result.assessment,
+        indicators: result.indicators,
+      });
+      setExplanation(res.data);
+    } catch (err) {
+      setExplanation({ status: 'unavailable', explanation: null });
+    } finally {
+      setExplaining(false);
     }
   };
 
@@ -53,6 +73,24 @@ function App() {
             <RiskScore assessment={result.assessment} />
             <ScamGraph data={result} onNodeClick={setSelectedNode} />
             {selectedNode && <EvidencePanel node={selectedNode} />}
+
+            <div className="border border-border rounded-xl bg-surface p-6">
+              {!explanation && (
+                <button
+                  onClick={handleExplain}
+                  disabled={explaining}
+                  className="text-accent hover:text-sky-400 text-sm font-medium disabled:opacity-40"
+                >
+                  {explaining ? 'Generating explanation...' : '✦ Explain this in plain English'}
+                </button>
+              )}
+              {explanation?.status === 'ok' && (
+                <p className="text-sm text-white/90 leading-relaxed">{explanation.explanation}</p>
+              )}
+              {explanation && explanation.status !== 'ok' && (
+                <p className="text-sm text-muted italic">Plain-English explanation unavailable right now.</p>
+              )}
+            </div>
           </div>
         )}
       </div>

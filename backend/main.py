@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from services.analysis import analyze_content
+from providers import gemini
 
 # Load local keys while keeping existing environment variables authoritative.
 load_dotenv(Path(__file__).with_name(".env"), override=False)
@@ -32,6 +33,12 @@ class AnalyzeRequest(BaseModel):
         return value
 
 
+class ExplainRequest(BaseModel):
+    content: str = Field(min_length=1, strict=True)
+    assessment: dict
+    indicators: dict
+
+
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
@@ -50,3 +57,9 @@ def analyze(request: AnalyzeRequest) -> dict:
         "content": request.content,
         **analyze_content(request.content),
     }
+
+
+@app.post("/explain")
+def explain(request: ExplainRequest) -> dict:
+    """Generate a plain-English explanation of an already-computed assessment."""
+    return gemini.explain(request.content, request.assessment, request.indicators)
